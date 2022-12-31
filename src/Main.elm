@@ -106,7 +106,7 @@ view model =
             text "\u{1F914}"
 
         Just (Ok meshes) ->
-            Scene3d.unlit
+            Scene3d.sunny
                 { dimensions = ( Pixels.int 500, Pixels.int 500 )
                 , camera =
                     Camera3d.perspective
@@ -128,7 +128,10 @@ view model =
                 , clipDepth = Length.meters 1
                 , background = Scene3d.transparentBackground
                 , entities =
-                    List.map (Scene3d.mesh (Scene3d.Material.color Color.blue)) meshes
+                    List.map (Scene3d.mesh (Scene3d.Material.matte Color.green)) meshes
+                , shadows = True
+                , sunlightDirection = Direction3d.yx <| Angle.degrees 140
+                , upDirection = Direction3d.positiveY
                 }
 
         Just (Err (Http.BadBody error)) ->
