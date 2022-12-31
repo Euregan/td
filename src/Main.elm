@@ -118,7 +118,7 @@ update msg model =
                     case [ tile, spawn, straight, corner, end ] of
                         [ Just (Ok loadedTile), Just (Ok loadedSpawn), Just (Ok loadedStraight), Just (Ok loadedCorner), Just (Ok loadedEnd) ] ->
                             Loaded
-                                { level = Level.init ( 10, 10 )
+                                { level = Level.init ( 15, 25 )
                                 , viewport = viewport
                                 , meshes =
                                     { tile = loadedTile
