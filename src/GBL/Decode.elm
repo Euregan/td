@@ -185,10 +185,6 @@ decodeBytes =
         |> Bytes.Decode.andThen (\length -> Bytes.Decode.string length)
         |> Bytes.Decode.andThen
             (\json ->
-                let
-                    log =
-                        Debug.log "error" json
-                in
                 case Json.Decode.decodeString decoder json of
                     Ok mesh ->
                         Bytes.Decode.unsignedInt32 Bytes.LE
@@ -204,10 +200,6 @@ decodeBytes =
                             |> Bytes.Decode.andThen (\bytes -> Bytes.Decode.succeed ( mesh, bytes ))
 
                     Err error ->
-                        let
-                            err =
-                                Debug.log "error" error
-                        in
                         Bytes.Decode.fail
             )
         |> Bytes.Decode.decode
@@ -398,7 +390,6 @@ rawToParsed raw bytes =
 
                 Ok maybeDatalist ->
                     maybeDatalist
-                        |> Debug.log "mesh"
                         |> List.foldl
                             (\maybeData result ->
                                 case ( result, maybeData ) of
