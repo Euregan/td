@@ -8,10 +8,16 @@ import end from "url:../static/tile_endRound.glb";
 Elm.Main.init({
   node: document.getElementById("root"),
   flags: {
-    tile,
-    spawn,
-    straight,
-    corner,
-    end,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+    models: {
+      tile,
+      spawn,
+      straight,
+      corner,
+      end,
+    }
   },
 });

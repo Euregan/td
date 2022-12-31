@@ -3,17 +3,16 @@ module Main exposing (..)
 import Angle
 import Browser
 import Camera3d
-import Color
 import Direction3d
 import GBL.Decode exposing (Coordinates)
 import Html exposing (Html, text)
 import Http
 import Length
 import Level exposing (Level)
+import Meshes exposing (Meshes)
 import Pixels
 import Point3d
 import Scene3d
-import Scene3d.Material
 import Scene3d.Mesh
 import Viewpoint3d
 
@@ -28,17 +27,24 @@ getMesh model msg =
 
 
 type alias LoadingMeshes =
-    { tile : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates))), spawn : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates))), straight : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates))), corner : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates))), end : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates))) }
+    { viewport :
+        { width : Float
+        , height : Float
+        }
+    , tile : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , spawn : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , straight : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , corner : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , end : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    }
 
 
 type alias GameState =
     { level : Level
-    , meshes :
-        { tile : List (Scene3d.Mesh.Textured Coordinates)
-        , spawn : List (Scene3d.Mesh.Textured Coordinates)
-        , straight : List (Scene3d.Mesh.Textured Coordinates)
-        , corner : List (Scene3d.Mesh.Textured Coordinates)
-        , end : List (Scene3d.Mesh.Textured Coordinates)
+    , meshes : Meshes
+    , viewport :
+        { width : Float
+        , height : Float
         }
     }
 
@@ -60,18 +66,25 @@ main =
 
 
 type alias Flags =
-    { tile : String
-    , spawn : String
-    , straight : String
-    , corner : String
-    , end : String
+    { viewport :
+        { width : Float
+        , height : Float
+        }
+    , models :
+        { tile : String
+        , spawn : String
+        , straight : String
+        , corner : String
+        , end : String
+        }
     }
 
 
 init : Flags -> ( Model, Cmd Msg )
-init models =
+init { viewport, models } =
     ( Loading
-        { tile = Nothing
+        { viewport = viewport
+        , tile = Nothing
         , spawn = Nothing
         , straight = Nothing
         , corner = Nothing
@@ -101,11 +114,12 @@ update msg model =
         Loading meshes ->
             let
                 checkState : LoadingMeshes -> Model
-                checkState { tile, spawn, straight, corner, end } =
+                checkState { viewport, tile, spawn, straight, corner, end } =
                     case [ tile, spawn, straight, corner, end ] of
                         [ Just (Ok loadedTile), Just (Ok loadedSpawn), Just (Ok loadedStraight), Just (Ok loadedCorner), Just (Ok loadedEnd) ] ->
                             Loaded
                                 { level = Level.init ( 10, 10 )
+                                , viewport = viewport
                                 , meshes =
                                     { tile = loadedTile
                                     , spawn = loadedSpawn
@@ -116,19 +130,19 @@ update msg model =
                                 }
 
                         [ Nothing, _, _, _, _ ] ->
-                            Loading { tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
 
                         [ _, Nothing, _, _, _ ] ->
-                            Loading { tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
 
                         [ _, _, Nothing, _, _ ] ->
-                            Loading { tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
 
                         [ _, _, _, Nothing, _ ] ->
-                            Loading { tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
 
                         [ _, _, _, _, Nothing ] ->
-                            Loading { tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
 
                         _ ->
                             Error
@@ -162,15 +176,15 @@ view model =
         Loading _ ->
             text "\u{1F914}"
 
-        Loaded { level, meshes } ->
+        Loaded { level, meshes, viewport } ->
             Scene3d.sunny
-                { dimensions = ( Pixels.int 500, Pixels.int 500 )
+                { dimensions = ( Pixels.int <| floor viewport.width, Pixels.int <| floor viewport.height )
                 , camera =
                     Camera3d.perspective
                         { viewpoint =
                             Viewpoint3d.lookAt
                                 { focalPoint = Point3d.origin
-                                , eyePoint = Point3d.meters 4 2 2
+                                , eyePoint = Point3d.meters 40 40 40
                                 , upDirection = Direction3d.positiveY
                                 }
                         , verticalFieldOfView = Angle.degrees 20
@@ -178,7 +192,7 @@ view model =
                 , clipDepth = Length.meters 1
                 , background = Scene3d.transparentBackground
                 , entities =
-                    List.map (Scene3d.mesh (Scene3d.Material.matte Color.green)) meshes.tile
+                    Level.view meshes level
                 , shadows = True
                 , sunlightDirection = Direction3d.yx <| Angle.degrees 140
                 , upDirection = Direction3d.positiveY
