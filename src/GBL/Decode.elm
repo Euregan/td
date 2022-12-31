@@ -439,12 +439,23 @@ type Coordinates
     = Coordinates
 
 
-parsedToMesh : List MeshData -> List (Scene3d.Mesh.Textured Coordinates)
+parsedToMesh : List MeshData -> List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )
 parsedToMesh =
-    List.map (\data -> TriangularMesh.indexed data.vertices data.indices |> Scene3d.Mesh.texturedFaces)
+    List.map
+        (\data ->
+            let
+                mesh =
+                    TriangularMesh.indexed data.vertices data.indices
+                        |> Scene3d.Mesh.texturedFaces
+
+                shadow =
+                    Scene3d.Mesh.shadow mesh
+            in
+            ( mesh, shadow )
+        )
 
 
-expectGBL : (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)) -> msg) -> Http.Expect msg
+expectGBL : (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )) -> msg) -> Http.Expect msg
 expectGBL toMsg =
     Http.expectBytesResponse toMsg <|
         \response ->

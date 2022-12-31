@@ -29,13 +29,13 @@ view : Meshes -> Level -> List (Scene3d.Entity Coordinates)
 view meshes level =
     let
         tile =
-            List.map (Scene3d.mesh (Scene3d.Material.matte Color.green)) meshes.tile
+            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.tile
 
         spawn =
-            List.map (Scene3d.mesh (Scene3d.Material.matte Color.green)) meshes.spawn
+            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.spawn
 
         end =
-            List.map (Scene3d.mesh (Scene3d.Material.matte Color.green)) meshes.end
+            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.end
 
         position : List (Scene3d.Entity Coordinates) -> Int -> Int -> List (Scene3d.Entity Coordinates)
         position mesh x y =

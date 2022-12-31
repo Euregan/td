@@ -17,7 +17,7 @@ import Scene3d.Mesh
 import Viewpoint3d
 
 
-getMesh : String -> (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)) -> Msg) -> Cmd Msg
+getMesh : String -> (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )) -> Msg) -> Cmd Msg
 getMesh model msg =
     Http.get
         { url = model
@@ -31,11 +31,11 @@ type alias LoadingMeshes =
         { width : Float
         , height : Float
         }
-    , tile : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
-    , spawn : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
-    , straight : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
-    , corner : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
-    , end : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , tile : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    , spawn : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    , straight : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    , corner : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    , end : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
     }
 
 
@@ -101,11 +101,11 @@ init { viewport, models } =
 
 
 type Msg
-    = GotTile (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
-    | GotSpawn (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
-    | GotStraight (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
-    | GotCorner (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
-    | GotEnd (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    = GotTile (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    | GotSpawn (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    | GotStraight (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    | GotCorner (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    | GotEnd (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
