@@ -17,20 +17,25 @@ import Scene3d.Mesh
 import Viewpoint3d
 
 
-getMesh : String -> Cmd Msg
-getMesh model =
+getMesh : String -> (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)) -> Msg) -> Cmd Msg
+getMesh model msg =
     Http.get
         { url = model
         , expect =
-            GBL.Decode.expectGBL GotMesh
+            GBL.Decode.expectGBL msg
         }
 
 
 type alias Model =
-    Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    { tile : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , spawn : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , straight : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , corner : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    , end : Maybe (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    }
 
 
-main : Program String Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { init = init
@@ -40,25 +45,63 @@ main =
         }
 
 
-init : String -> ( Model, Cmd Msg )
-init model =
-    ( Nothing, getMesh model )
+type alias Flags =
+    { tile : String
+    , spawn : String
+    , straight : String
+    , corner : String
+    , end : String
+    }
+
+
+init : Flags -> ( Model, Cmd Msg )
+init models =
+    ( { tile = Nothing
+      , spawn = Nothing
+      , straight = Nothing
+      , corner = Nothing
+      , end = Nothing
+      }
+    , Cmd.batch
+        [ getMesh models.tile GotTile
+        , getMesh models.spawn GotSpawn
+        , getMesh models.straight GotStraight
+        , getMesh models.corner GotCorner
+        , getMesh models.end GotEnd
+        ]
+    )
 
 
 type Msg
-    = GotMesh (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    = GotTile (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    | GotSpawn (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    | GotStraight (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    | GotCorner (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
+    | GotEnd (Result Http.Error (List (Scene3d.Mesh.Textured Coordinates)))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GotMesh result ->
-            ( Just result, Cmd.none )
+        GotTile mesh ->
+            ( { model | tile = Just mesh }, Cmd.none )
+
+        GotSpawn mesh ->
+            ( { model | spawn = Just mesh }, Cmd.none )
+
+        GotStraight mesh ->
+            ( { model | straight = Just mesh }, Cmd.none )
+
+        GotCorner mesh ->
+            ( { model | corner = Just mesh }, Cmd.none )
+
+        GotEnd mesh ->
+            ( { model | end = Just mesh }, Cmd.none )
 
 
 view : Model -> Html Msg
 view model =
-    case model of
+    case model.tile of
         Nothing ->
             text "\u{1F914}"
 
