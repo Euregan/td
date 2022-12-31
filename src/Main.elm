@@ -73,7 +73,7 @@ view model =
                             Viewpoint3d.lookAt
                                 { focalPoint = Point3d.origin
                                 , eyePoint = Point3d.meters 4 2 2
-                                , upDirection = Direction3d.positiveZ
+                                , upDirection = Direction3d.positiveY
                                 }
 
                         -- The image on the screen will have a total rendered 'height'
