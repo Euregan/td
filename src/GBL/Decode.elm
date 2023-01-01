@@ -199,7 +199,7 @@ decodeBytes =
                                 )
                             |> Bytes.Decode.andThen (\bytes -> Bytes.Decode.succeed ( mesh, bytes ))
 
-                    Err error ->
+                    Err _ ->
                         Bytes.Decode.fail
             )
         |> Bytes.Decode.decode
