@@ -3,6 +3,7 @@ module GBL.Decode exposing (..)
 import Array exposing (Array)
 import Bytes exposing (Bytes)
 import Bytes.Decode
+import Coordinates exposing (GameCoordinates)
 import Http
 import Json.Decode
 import Length exposing (Meters)
@@ -208,8 +209,8 @@ decodeBytes =
 type alias MeshData =
     { vertices :
         Array
-            { position : Point3d Meters Coordinates
-            , normal : Vector3d Unitless Coordinates
+            { position : Point3d Meters GameCoordinates
+            , normal : Vector3d Unitless GameCoordinates
             , uv : ( Float, Float )
             }
     , indices : List ( Int, Int, Int )
@@ -435,11 +436,7 @@ rawToParsed raw bytes =
         data
 
 
-type Coordinates
-    = Coordinates
-
-
-parsedToMesh : List MeshData -> List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )
+parsedToMesh : List MeshData -> List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )
 parsedToMesh =
     List.map
         (\data ->
@@ -455,7 +452,7 @@ parsedToMesh =
         )
 
 
-expectGBL : (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )) -> msg) -> Http.Expect msg
+expectGBL : (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )) -> msg) -> Http.Expect msg
 expectGBL toMsg =
     Http.expectBytesResponse toMsg <|
         \response ->

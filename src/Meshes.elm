@@ -1,13 +1,13 @@
 module Meshes exposing (..)
 
-import GBL.Decode exposing (Coordinates)
+import Coordinates exposing (GameCoordinates)
 import Scene3d.Mesh
 
 
 type alias Meshes =
-    { tile : List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )
-    , spawn : List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )
-    , straight : List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )
-    , corner : List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )
-    , end : List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )
+    { tile : List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )
+    , spawn : List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )
+    , straight : List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )
+    , corner : List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )
+    , end : List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )
     }

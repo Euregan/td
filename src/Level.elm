@@ -1,8 +1,8 @@
 module Level exposing (..)
 
-import AStar exposing (Path)
+import AStar exposing (Path, Position)
 import Color
-import GBL.Decode exposing (Coordinates)
+import Coordinates exposing (GameCoordinates)
 import Meshes exposing (Meshes)
 import Scene3d
 import Scene3d.Material
@@ -40,8 +40,8 @@ path level =
         |> Maybe.withDefault []
 
 
-view : Meshes -> Level -> List (Scene3d.Entity Coordinates)
-view meshes level =
+view : Meshes -> Level -> Maybe Position -> List (Scene3d.Entity GameCoordinates)
+view meshes level hoveredTile =
     let
         tile =
             List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.tile
@@ -55,35 +55,60 @@ view meshes level =
         straight =
             List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.straight
 
-        position : List (Scene3d.Entity Coordinates) -> Int -> Int -> List (Scene3d.Entity Coordinates)
+        position : List (Scene3d.Entity GameCoordinates) -> Int -> Int -> List (Scene3d.Entity GameCoordinates)
         position mesh x y =
-            List.map (Scene3d.translateBy (Vector3d.meters (toFloat x - toFloat level.width / 2) 0 (toFloat y - toFloat level.length / 2))) mesh
+            List.map
+                (Scene3d.translateBy
+                    (Vector3d.meters
+                        (toFloat x - toFloat level.width / 2)
+                        0
+                        (toFloat y - toFloat level.length / 2)
+                    )
+                )
+                mesh
 
         road =
             path level
+
+        offsetIfHover : Int -> Int -> Scene3d.Entity GameCoordinates -> Scene3d.Entity GameCoordinates
+        offsetIfHover x y =
+            Scene3d.translateBy
+                (Vector3d.meters
+                    0
+                    (if Just ( x, y ) == hoveredTile then
+                        0.1
+
+                     else
+                        0
+                    )
+                    0
+                )
     in
-    List.range 0 level.width
+    tiles level
         |> List.map
-            (\x ->
-                List.range 0 level.length
-                    |> List.map
-                        (\y ->
-                            position
-                                (if x == level.start.x && y == level.start.y then
-                                    spawn
+            (\( x, y ) ->
+                position
+                    (if x == level.start.x && y == level.start.y then
+                        spawn
 
-                                 else if x == level.end.x && y == level.end.y then
-                                    end
+                     else if x == level.end.x && y == level.end.y then
+                        end
 
-                                 else if List.member ( x, y ) road then
-                                    straight
+                     else if List.member ( x, y ) road then
+                        straight
 
-                                 else
-                                    tile
-                                )
-                                x
-                                y
-                        )
+                     else
+                        tile
+                    )
+                    x
+                    y
+                    |> List.map (offsetIfHover x y)
             )
         |> List.concat
+
+
+tiles : Level -> List Position
+tiles level =
+    List.range 0 level.width
+        |> List.map (\x -> List.range 0 level.length |> List.map (\y -> ( x, y )))
         |> List.concat

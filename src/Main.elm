@@ -2,22 +2,27 @@ module Main exposing (..)
 
 import Angle
 import Browser
+import Browser.Events
 import Camera3d
+import Coordinates exposing (GameCoordinates)
 import Direction3d
-import GBL.Decode exposing (Coordinates)
+import GBL.Decode
+import GameState exposing (GameState)
 import Html exposing (Html, text)
 import Http
+import Json.Decode
 import Length
-import Level exposing (Level)
-import Meshes exposing (Meshes)
-import Pixels
+import Level
+import Pixels exposing (Pixels)
 import Point3d
+import Quantity exposing (Quantity)
 import Scene3d
 import Scene3d.Mesh
 import Viewpoint3d
+import Viewport exposing (Viewport)
 
 
-getMesh : String -> (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )) -> Msg) -> Cmd Msg
+getMesh : String -> (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )) -> Msg) -> Cmd Msg
 getMesh model msg =
     Http.get
         { url = model
@@ -27,25 +32,12 @@ getMesh model msg =
 
 
 type alias LoadingMeshes =
-    { viewport :
-        { width : Float
-        , height : Float
-        }
-    , tile : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    , spawn : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    , straight : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    , corner : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    , end : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    }
-
-
-type alias GameState =
-    { level : Level
-    , meshes : Meshes
-    , viewport :
-        { width : Float
-        , height : Float
-        }
+    { viewport : Viewport
+    , tile : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    , spawn : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    , straight : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    , corner : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    , end : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
     }
 
 
@@ -61,15 +53,12 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         }
 
 
 type alias Flags =
-    { viewport :
-        { width : Float
-        , height : Float
-        }
+    { viewport : Viewport
     , models :
         { tile : String
         , spawn : String
@@ -101,11 +90,13 @@ init { viewport, models } =
 
 
 type Msg
-    = GotTile (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    | GotSpawn (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    | GotStraight (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    | GotCorner (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
-    | GotEnd (Result Http.Error (List ( Scene3d.Mesh.Textured Coordinates, Scene3d.Mesh.Shadow Coordinates )))
+    = GotTile (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    | GotSpawn (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    | GotStraight (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    | GotCorner (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    | GotEnd (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    | WindowResized Viewport
+    | MouseMoved (Quantity Float Pixels) (Quantity Float Pixels)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -117,17 +108,7 @@ update msg model =
                 checkState { viewport, tile, spawn, straight, corner, end } =
                     case [ tile, spawn, straight, corner, end ] of
                         [ Just (Ok loadedTile), Just (Ok loadedSpawn), Just (Ok loadedStraight), Just (Ok loadedCorner), Just (Ok loadedEnd) ] ->
-                            Loaded
-                                { level = Level.init ( 15, 25 )
-                                , viewport = viewport
-                                , meshes =
-                                    { tile = loadedTile
-                                    , spawn = loadedSpawn
-                                    , straight = loadedStraight
-                                    , corner = loadedCorner
-                                    , end = loadedEnd
-                                    }
-                                }
+                            Loaded <| GameState.init viewport { tile = loadedTile, spawn = loadedSpawn, straight = loadedStraight, corner = loadedCorner, end = loadedEnd }
 
                         [ Nothing, _, _, _, _ ] ->
                             Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
@@ -163,8 +144,22 @@ update msg model =
                 GotEnd mesh ->
                     ( checkState { meshes | end = Just mesh }, Cmd.none )
 
-        Loaded _ ->
-            ( model, Cmd.none )
+                WindowResized viewport ->
+                    ( Loading { meshes | viewport = viewport }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        Loaded state ->
+            case msg of
+                WindowResized viewport ->
+                    ( Loaded <| GameState.update (GameState.WindowResized viewport) state, Cmd.none )
+
+                MouseMoved x y ->
+                    ( Loaded <| GameState.update (GameState.MouseMoved x y) state, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         Error ->
             ( model, Cmd.none )
@@ -176,23 +171,14 @@ view model =
         Loading _ ->
             text "\u{1F914}"
 
-        Loaded { level, meshes, viewport } ->
+        Loaded { level, meshes, viewport, camera, hoveredTile } ->
             Scene3d.sunny
                 { dimensions = ( Pixels.int <| floor viewport.width, Pixels.int <| floor viewport.height )
-                , camera =
-                    Camera3d.perspective
-                        { viewpoint =
-                            Viewpoint3d.lookAt
-                                { focalPoint = Point3d.origin
-                                , eyePoint = Point3d.meters 40 40 40
-                                , upDirection = Direction3d.positiveY
-                                }
-                        , verticalFieldOfView = Angle.degrees 20
-                        }
+                , camera = camera
                 , clipDepth = Length.meters 1
                 , background = Scene3d.transparentBackground
                 , entities =
-                    Level.view meshes level
+                    Level.view meshes level hoveredTile
                 , shadows = True
                 , sunlightDirection = Direction3d.yx <| Angle.degrees 140
                 , upDirection = Direction3d.positiveY
@@ -200,3 +186,18 @@ view model =
 
         Error ->
             text "😔"
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    let
+        decodeMouseMove : Json.Decode.Decoder Msg
+        decodeMouseMove =
+            Json.Decode.map2 MouseMoved
+                (Json.Decode.field "pageX" (Json.Decode.map Pixels.float Json.Decode.float))
+                (Json.Decode.field "pageY" (Json.Decode.map Pixels.float Json.Decode.float))
+    in
+    Sub.batch
+        [ Browser.Events.onResize (\width height -> WindowResized <| Viewport (toFloat width) (toFloat height))
+        , Browser.Events.onMouseMove decodeMouseMove
+        ]
