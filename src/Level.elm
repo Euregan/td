@@ -24,7 +24,7 @@ init ( width, length ) =
         width
         length
         { x = width // 2, y = 1 }
-        { x = width // 2, y = length - 1 }
+        { x = width // 2, y = length - 2 }
 
 
 path : Level -> Path
@@ -109,6 +109,6 @@ view meshes level hoveredTile =
 
 tiles : Level -> List Position
 tiles level =
-    List.range 0 level.width
-        |> List.map (\x -> List.range 0 level.length |> List.map (\y -> ( x, y )))
+    List.range 0 (level.width - 1)
+        |> List.map (\x -> List.range 0 (level.length - 1) |> List.map (\y -> ( x, y )))
         |> List.concat

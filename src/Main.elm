@@ -1,9 +1,11 @@
 module Main exposing (..)
 
 import Angle
+import Axis3d exposing (Axis3d)
 import Browser
 import Browser.Events
-import Camera3d
+import Camera3d exposing (Camera3d)
+import Color
 import Coordinates exposing (GameCoordinates)
 import Direction3d
 import GBL.Decode
@@ -13,12 +15,16 @@ import Http
 import Json.Decode
 import Length
 import Level
+import LineSegment3d
 import Pixels exposing (Pixels)
+import Point2d exposing (Point2d)
 import Point3d
 import Quantity exposing (Quantity)
+import Rectangle2d exposing (Rectangle2d)
 import Scene3d
+import Scene3d.Material
 import Scene3d.Mesh
-import Viewpoint3d
+import SketchPlane3d exposing (SketchPlane3d)
 import Viewport exposing (Viewport)
 
 
@@ -178,9 +184,9 @@ view model =
                 , clipDepth = Length.meters 1
                 , background = Scene3d.transparentBackground
                 , entities =
-                    Level.view meshes level hoveredTile
+                    ground :: Level.view meshes level hoveredTile
                 , shadows = True
-                , sunlightDirection = Direction3d.yx <| Angle.degrees 140
+                , sunlightDirection = Direction3d.xyZ (Angle.degrees 130) (Angle.degrees 150)
                 , upDirection = Direction3d.positiveY
                 }
 
@@ -201,3 +207,34 @@ subscriptions _ =
         [ Browser.Events.onResize (\width height -> WindowResized <| Viewport (toFloat width) (toFloat height))
         , Browser.Events.onMouseMove decodeMouseMove
         ]
+
+
+ground : Scene3d.Entity GameCoordinates
+ground =
+    Scene3d.quad
+        (Scene3d.Material.matte Color.white)
+        (Point3d.meters -50 0 -50)
+        (Point3d.meters -50 0 50)
+        (Point3d.meters 50 0 50)
+        (Point3d.meters 50 0 -50)
+
+
+grid : Scene3d.Entity GameCoordinates
+grid =
+    [ List.range -11 10
+        |> List.map
+            (\x ->
+                Scene3d.lineSegment
+                    (Scene3d.Material.color Color.red)
+                    (LineSegment3d.from (Point3d.meters (toFloat x) 0 -16) (Point3d.meters (toFloat x) 0 15))
+            )
+    , List.range -16 15
+        |> List.map
+            (\y ->
+                Scene3d.lineSegment
+                    (Scene3d.Material.color Color.red)
+                    (LineSegment3d.from (Point3d.meters -11 0 (toFloat y)) (Point3d.meters 10 0 (toFloat y)))
+            )
+    ]
+        |> List.concat
+        |> Scene3d.group

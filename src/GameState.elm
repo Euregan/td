@@ -10,7 +10,6 @@ import Level exposing (Level)
 import Math exposing (pointInRectangle)
 import Meshes exposing (Meshes)
 import Pixels exposing (Pixels)
-import Plane3d
 import Point2d
 import Quantity exposing (Quantity)
 import Rectangle2d
@@ -58,12 +57,9 @@ update msg state =
                 axis =
                     Camera3d.ray
                         state.camera
-                        (Rectangle2d.with
-                            { x1 = Pixels.float 0
-                            , y1 = Pixels.float 0
-                            , x2 = Pixels.float state.viewport.width
-                            , y2 = Pixels.float state.viewport.height
-                            }
+                        (Rectangle2d.from
+                            (Point2d.pixels 0 state.viewport.height)
+                            (Point2d.pixels state.viewport.width 0)
                         )
                         (Point2d.xy x y)
 
@@ -77,7 +73,7 @@ update msg state =
 
 intersectWithTile : Axis3d Meters GameCoordinates -> Level -> Position -> Bool
 intersectWithTile axis level ( x, y ) =
-    Axis3d.intersectionWithPlane Plane3d.zx axis
+    Axis3d.intersectionWithPlane (SketchPlane3d.toPlane plane) axis
         |> Maybe.map
             (Rectangle2d.from
                 (Point2d.meters (toFloat x + 0.5 - toFloat level.width / 2) (toFloat y + 0.5 - toFloat level.length / 2))
@@ -90,4 +86,4 @@ intersectWithTile axis level ( x, y ) =
 
 plane : SketchPlane3d Meters GameCoordinates defines
 plane =
-    SketchPlane3d.zx |> SketchPlane3d.reverseY |> SketchPlane3d.reverseX
+    SketchPlane3d.xz
