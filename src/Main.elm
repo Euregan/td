@@ -1,10 +1,8 @@
 module Main exposing (..)
 
 import Angle
-import Axis3d exposing (Axis3d)
 import Browser
 import Browser.Events
-import Camera3d exposing (Camera3d)
 import Color
 import Coordinates exposing (GameCoordinates)
 import Direction3d
@@ -17,14 +15,11 @@ import Length
 import Level
 import LineSegment3d
 import Pixels exposing (Pixels)
-import Point2d exposing (Point2d)
 import Point3d
 import Quantity exposing (Quantity)
-import Rectangle2d exposing (Rectangle2d)
 import Scene3d
 import Scene3d.Material
 import Scene3d.Mesh
-import SketchPlane3d exposing (SketchPlane3d)
 import Viewport exposing (Viewport)
 
 
@@ -175,16 +170,19 @@ view : Model -> Html Msg
 view model =
     case model of
         Loading _ ->
-            text "\u{1F914}"
+            text "🤔"
 
-        Loaded { level, meshes, viewport, camera, hoveredTile } ->
+        Loaded state ->
+            let
+                { level, meshes, viewport, camera, hoveredTile } =
+                    state
+            in
             Scene3d.sunny
                 { dimensions = ( Pixels.int <| floor viewport.width, Pixels.int <| floor viewport.height )
                 , camera = camera
                 , clipDepth = Length.meters 1
                 , background = Scene3d.transparentBackground
-                , entities =
-                    ground :: Level.view meshes level hoveredTile
+                , entities = List.concat [ [ ground ], Level.view meshes level hoveredTile, GameState.view state ]
                 , shadows = True
                 , sunlightDirection = Direction3d.xyZ (Angle.degrees 130) (Angle.degrees 150)
                 , upDirection = Direction3d.positiveY

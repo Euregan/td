@@ -15,28 +15,37 @@ type alias Level =
     , length : Int
     , start : { x : Int, y : Int }
     , end : { x : Int, y : Int }
+    , path : Path
     }
 
 
 init : ( Int, Int ) -> Level
 init ( width, length ) =
-    Level
-        width
-        length
-        { x = width // 2, y = 1 }
-        { x = width // 2, y = length - 2 }
+    let
+        start =
+            { x = width // 2, y = 1 }
+
+        end =
+            { x = width // 2, y = length - 2 }
+    in
+    { width = width
+    , length = length
+    , start = start
+    , end = end
+    , path = path width length start end
+    }
 
 
-path : Level -> Path
-path level =
+path : Int -> Int -> { x : Int, y : Int } -> { x : Int, y : Int } -> Path
+path width length start end =
     AStar.findPath AStar.straightLineCost
         (\( x, y ) ->
             [ ( x + 1, y ), ( x - 1, y ), ( x, y + 1 ), ( x, y - 1 ) ]
-                |> List.filter (\( x_, y_ ) -> x_ >= 0 && y_ >= 0 && x_ <= level.width && y_ <= level.length)
+                |> List.filter (\( x_, y_ ) -> x_ >= 0 && y_ >= 0 && x_ <= width && y_ <= length)
                 |> Set.fromList
         )
-        ( level.start.x, level.start.y )
-        ( level.end.x, level.end.y )
+        ( start.x, start.y )
+        ( end.x, end.y )
         |> Maybe.withDefault []
 
 
@@ -67,9 +76,6 @@ view meshes level hoveredTile =
                 )
                 mesh
 
-        road =
-            path level
-
         offsetIfHover : Int -> Int -> Scene3d.Entity GameCoordinates -> Scene3d.Entity GameCoordinates
         offsetIfHover x y =
             Scene3d.translateBy
@@ -94,7 +100,7 @@ view meshes level hoveredTile =
                      else if x == level.end.x && y == level.end.y then
                         end
 
-                     else if List.member ( x, y ) road then
+                     else if List.member ( x, y ) level.path then
                         straight
 
                      else

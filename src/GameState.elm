@@ -5,6 +5,7 @@ import Axis3d exposing (Axis3d)
 import Camera exposing (Camera)
 import Camera3d
 import Coordinates exposing (GameCoordinates)
+import Enemy exposing (Enemy)
 import Length exposing (Meters)
 import Level exposing (Level)
 import Math exposing (pointInRectangle)
@@ -14,7 +15,9 @@ import Point2d
 import Quantity exposing (Quantity)
 import Rectangle2d
 import Rectangle3d
+import Scene3d
 import SketchPlane3d exposing (SketchPlane3d)
+import Vector3d exposing (Vector3d)
 import Viewport exposing (Viewport)
 
 
@@ -28,6 +31,7 @@ type alias GameState =
     , viewport : Viewport
     , camera : Camera
     , hoveredTile : Maybe Position
+    , enemies : List Enemy
     }
 
 
@@ -38,11 +42,16 @@ type Msg
 
 init : Viewport -> Meshes -> GameState
 init viewport meshes =
-    { level = Level.init ( 15, 25 )
+    let
+        level =
+            Level.init ( 15, 25 )
+    in
+    { level = level
     , viewport = viewport
     , meshes = meshes
     , camera = Camera.init
     , hoveredTile = Nothing
+    , enemies = [ Enemy.init level ]
     }
 
 
@@ -69,6 +78,19 @@ update msg state =
                         |> List.head
             in
             { state | hoveredTile = hoveredTile }
+
+
+view : GameState -> List (Scene3d.Entity GameCoordinates)
+view state =
+    List.map Enemy.view state.enemies
+        |> List.map
+            (Scene3d.translateBy
+                (Vector3d.meters
+                    (toFloat state.level.width / -2)
+                    0
+                    (toFloat state.level.length / -2)
+                )
+            )
 
 
 intersectWithTile : Axis3d Meters GameCoordinates -> Level -> Position -> Bool
