@@ -98,6 +98,7 @@ type Msg
     | GotEnd (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
     | WindowResized Viewport
     | MouseMoved (Quantity Float Pixels) (Quantity Float Pixels)
+    | NewFrame Float
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -159,6 +160,9 @@ update msg model =
                 MouseMoved x y ->
                     ( Loaded <| GameState.update (GameState.MouseMoved x y) state, Cmd.none )
 
+                NewFrame delta ->
+                    ( Loaded <| GameState.tick delta state, Cmd.none )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -204,6 +208,7 @@ subscriptions _ =
     Sub.batch
         [ Browser.Events.onResize (\width height -> WindowResized <| Viewport (toFloat width) (toFloat height))
         , Browser.Events.onMouseMove decodeMouseMove
+        , Browser.Events.onAnimationFrameDelta NewFrame
         ]
 
 

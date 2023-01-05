@@ -80,6 +80,11 @@ update msg state =
             { state | hoveredTile = hoveredTile }
 
 
+tick : Float -> GameState -> GameState
+tick delta state =
+    { state | enemies = List.map (Enemy.tick delta) state.enemies }
+
+
 view : GameState -> List (Scene3d.Entity GameCoordinates)
 view state =
     List.map Enemy.view state.enemies
