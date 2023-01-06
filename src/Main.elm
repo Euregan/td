@@ -39,6 +39,7 @@ type alias LoadingMeshes =
     , straight : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
     , corner : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
     , end : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    , orcTower : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
     }
 
 
@@ -66,6 +67,7 @@ type alias Flags =
         , straight : String
         , corner : String
         , end : String
+        , orcTower : String
         }
     }
 
@@ -79,6 +81,7 @@ init { viewport, models } =
         , straight = Nothing
         , corner = Nothing
         , end = Nothing
+        , orcTower = Nothing
         }
     , Cmd.batch
         [ getMesh models.tile GotTile
@@ -86,6 +89,7 @@ init { viewport, models } =
         , getMesh models.straight GotStraight
         , getMesh models.corner GotCorner
         , getMesh models.end GotEnd
+        , getMesh models.orcTower GotOrcTower
         ]
     )
 
@@ -96,6 +100,7 @@ type Msg
     | GotStraight (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
     | GotCorner (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
     | GotEnd (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    | GotOrcTower (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
     | WindowResized Viewport
     | MouseMoved (Quantity Float Pixels) (Quantity Float Pixels)
     | NewFrame Float
@@ -107,25 +112,28 @@ update msg model =
         Loading meshes ->
             let
                 checkState : LoadingMeshes -> Model
-                checkState { viewport, tile, spawn, straight, corner, end } =
-                    case [ tile, spawn, straight, corner, end ] of
-                        [ Just (Ok loadedTile), Just (Ok loadedSpawn), Just (Ok loadedStraight), Just (Ok loadedCorner), Just (Ok loadedEnd) ] ->
-                            Loaded <| GameState.init viewport { tile = loadedTile, spawn = loadedSpawn, straight = loadedStraight, corner = loadedCorner, end = loadedEnd }
+                checkState { viewport, tile, spawn, straight, corner, end, orcTower } =
+                    case [ tile, spawn, straight, corner, end, orcTower ] of
+                        [ Just (Ok loadedTile), Just (Ok loadedSpawn), Just (Ok loadedStraight), Just (Ok loadedCorner), Just (Ok loadedEnd), Just (Ok loadedOrcTower) ] ->
+                            Loaded <| GameState.init viewport { tile = loadedTile, spawn = loadedSpawn, straight = loadedStraight, corner = loadedCorner, end = loadedEnd, orcTower = loadedOrcTower }
 
-                        [ Nothing, _, _, _, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                        [ Nothing, _, _, _, _, _ ] ->
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
 
-                        [ _, Nothing, _, _, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                        [ _, Nothing, _, _, _, _ ] ->
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
 
-                        [ _, _, Nothing, _, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                        [ _, _, Nothing, _, _, _ ] ->
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
 
-                        [ _, _, _, Nothing, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                        [ _, _, _, Nothing, _, _ ] ->
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
 
-                        [ _, _, _, _, Nothing ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end }
+                        [ _, _, _, _, Nothing, _ ] ->
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
+
+                        [ _, _, _, _, _, Nothing ] ->
+                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
 
                         _ ->
                             Error
@@ -145,6 +153,9 @@ update msg model =
 
                 GotEnd mesh ->
                     ( checkState { meshes | end = Just mesh }, Cmd.none )
+
+                GotOrcTower mesh ->
+                    ( checkState { meshes | orcTower = Just mesh }, Cmd.none )
 
                 WindowResized viewport ->
                     ( Loading { meshes | viewport = viewport }, Cmd.none )
@@ -186,7 +197,7 @@ view model =
                 , camera = camera
                 , clipDepth = Length.meters 1
                 , background = Scene3d.transparentBackground
-                , entities = List.concat [ [ ground ], Level.view meshes level hoveredTile, GameState.view state ]
+                , entities = List.concat [ [ ground ], Level.view meshes level hoveredTile, GameState.view meshes state ]
                 , shadows = True
                 , sunlightDirection = Direction3d.xyZ (Angle.degrees 130) (Angle.degrees 150)
                 , upDirection = Direction3d.positiveY

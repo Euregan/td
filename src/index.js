@@ -4,6 +4,7 @@ import spawn from "url:../static/tile_endRoundSpawn.glb";
 import straight from "url:../static/tile_straight.glb";
 import corner from "url:../static/tile_cornerRound.glb";
 import end from "url:../static/tile_endRound.glb";
+import orcTower from "url:../static/towerRound_sampleA.glb";
 
 Elm.Main.init({
   node: document.getElementById("root"),
@@ -18,6 +19,7 @@ Elm.Main.init({
       straight,
       corner,
       end,
+      orcTower
     }
   },
 });

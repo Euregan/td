@@ -11,13 +11,14 @@ import Level exposing (Level)
 import Math exposing (pointInRectangle)
 import Meshes exposing (Meshes)
 import Pixels exposing (Pixels)
+import Player exposing (Player)
 import Point2d
 import Quantity exposing (Quantity)
 import Rectangle2d
 import Rectangle3d
 import Scene3d
 import SketchPlane3d exposing (SketchPlane3d)
-import Vector3d exposing (Vector3d)
+import Vector3d
 import Viewport exposing (Viewport)
 
 
@@ -31,6 +32,8 @@ type alias GameState =
     , viewport : Viewport
     , camera : Camera
     , hoveredTile : Maybe Position
+    , players : List Player
+    , player : Player
     , enemies : List Enemy
     }
 
@@ -51,6 +54,8 @@ init viewport meshes =
     , meshes = meshes
     , camera = Camera.init
     , hoveredTile = Nothing
+    , players = []
+    , player = Player.init
     , enemies = [ Enemy.init level ]
     }
 
@@ -85,17 +90,28 @@ tick delta state =
     { state | enemies = List.map (Enemy.tick delta) state.enemies }
 
 
-view : GameState -> List (Scene3d.Entity GameCoordinates)
-view state =
-    List.map Enemy.view state.enemies
-        |> List.map
-            (Scene3d.translateBy
-                (Vector3d.meters
-                    (toFloat state.level.width / -2)
-                    0
-                    (toFloat state.level.length / -2)
+view : Meshes -> GameState -> List (Scene3d.Entity GameCoordinates)
+view meshes state =
+    List.concat
+        [ List.map Enemy.view state.enemies
+            |> List.map
+                (Scene3d.translateBy
+                    (Vector3d.meters
+                        (toFloat state.level.width / -2)
+                        0
+                        (toFloat state.level.length / -2)
+                    )
                 )
-            )
+        , Player.view meshes state.player state.hoveredTile
+            |> List.map
+                (Scene3d.translateBy
+                    (Vector3d.meters
+                        (toFloat state.level.width / -2)
+                        0
+                        (toFloat state.level.length / -2)
+                    )
+                )
+        ]
 
 
 intersectWithTile : Axis3d Meters GameCoordinates -> Level -> Position -> Bool

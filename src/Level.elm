@@ -75,20 +75,6 @@ view meshes level hoveredTile =
                     )
                 )
                 mesh
-
-        offsetIfHover : Int -> Int -> Scene3d.Entity GameCoordinates -> Scene3d.Entity GameCoordinates
-        offsetIfHover x y =
-            Scene3d.translateBy
-                (Vector3d.meters
-                    0
-                    (if Just ( x, y ) == hoveredTile then
-                        0.1
-
-                     else
-                        0
-                    )
-                    0
-                )
     in
     tiles level
         |> List.map
@@ -108,7 +94,6 @@ view meshes level hoveredTile =
                     )
                     x
                     y
-                    |> List.map (offsetIfHover x y)
             )
         |> List.concat
 
