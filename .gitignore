@@ -2,3 +2,7 @@ node_modules
 elm-stuff
 dist
 .parcel-cache
+
+src/Meshes.elm
+src/Loading.elm
+src/Flags.elm

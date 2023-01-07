@@ -6,40 +6,25 @@ import Browser.Events
 import Color
 import Coordinates exposing (GameCoordinates)
 import Direction3d
-import GBL.Decode
+import Flags exposing (Flags)
 import GameState exposing (GameState)
 import Html exposing (Html, text)
-import Http
 import Json.Decode
 import Length
 import Level
 import LineSegment3d
-import Pixels exposing (Pixels)
+import Loading
+import Msg exposing (Msg(..))
+import Pixels
 import Point3d
-import Quantity exposing (Quantity)
 import Scene3d
 import Scene3d.Material
-import Scene3d.Mesh
 import Viewport exposing (Viewport)
-
-
-getMesh : String -> (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )) -> Msg) -> Cmd Msg
-getMesh model msg =
-    Http.get
-        { url = model
-        , expect =
-            GBL.Decode.expectGBL msg
-        }
 
 
 type alias LoadingMeshes =
     { viewport : Viewport
-    , tile : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    , spawn : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    , straight : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    , corner : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    , end : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    , orcTower : Maybe (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
+    , meshes : Loading.Loading
     }
 
 
@@ -49,7 +34,7 @@ type Model
     | Error
 
 
-main : Program Flags Model Msg
+main : Program Flags Model (Msg Loading.Msg)
 main =
     Browser.element
         { init = init
@@ -59,103 +44,37 @@ main =
         }
 
 
-type alias Flags =
-    { viewport : Viewport
-    , models :
-        { tile : String
-        , spawn : String
-        , straight : String
-        , corner : String
-        , end : String
-        , orcTower : String
-        }
-    }
-
-
-init : Flags -> ( Model, Cmd Msg )
+init : Flags -> ( Model, Cmd (Msg Loading.Msg) )
 init { viewport, models } =
     ( Loading
         { viewport = viewport
-        , tile = Nothing
-        , spawn = Nothing
-        , straight = Nothing
-        , corner = Nothing
-        , end = Nothing
-        , orcTower = Nothing
+        , meshes = Loading.init
         }
-    , Cmd.batch
-        [ getMesh models.tile GotTile
-        , getMesh models.spawn GotSpawn
-        , getMesh models.straight GotStraight
-        , getMesh models.corner GotCorner
-        , getMesh models.end GotEnd
-        , getMesh models.orcTower GotOrcTower
-        ]
+    , Cmd.batch <|
+        Loading.commands models
     )
 
 
-type Msg
-    = GotTile (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    | GotSpawn (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    | GotStraight (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    | GotCorner (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    | GotEnd (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    | GotOrcTower (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )))
-    | WindowResized Viewport
-    | MouseMoved (Quantity Float Pixels) (Quantity Float Pixels)
-    | NewFrame Float
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
+update : Msg Loading.Msg -> Model -> ( Model, Cmd (Msg Loading.Msg) )
 update msg model =
     case model of
         Loading meshes ->
             let
-                checkState : LoadingMeshes -> Model
-                checkState { viewport, tile, spawn, straight, corner, end, orcTower } =
-                    case [ tile, spawn, straight, corner, end, orcTower ] of
-                        [ Just (Ok loadedTile), Just (Ok loadedSpawn), Just (Ok loadedStraight), Just (Ok loadedCorner), Just (Ok loadedEnd), Just (Ok loadedOrcTower) ] ->
-                            Loaded <| GameState.init viewport { tile = loadedTile, spawn = loadedSpawn, straight = loadedStraight, corner = loadedCorner, end = loadedEnd, orcTower = loadedOrcTower }
+                handleState : LoadingMeshes -> Model
+                handleState state =
+                    case Loading.toMeshes state.meshes of
+                        Nothing ->
+                            Loading state
 
-                        [ Nothing, _, _, _, _, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
-
-                        [ _, Nothing, _, _, _, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
-
-                        [ _, _, Nothing, _, _, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
-
-                        [ _, _, _, Nothing, _, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
-
-                        [ _, _, _, _, Nothing, _ ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
-
-                        [ _, _, _, _, _, Nothing ] ->
-                            Loading { viewport = viewport, tile = tile, spawn = spawn, straight = straight, corner = corner, end = end, orcTower = orcTower }
-
-                        _ ->
+                        Just (Err _) ->
                             Error
+
+                        Just (Ok models) ->
+                            Loaded <| GameState.init state.viewport models
             in
             case msg of
-                GotTile mesh ->
-                    ( checkState { meshes | tile = Just mesh }, Cmd.none )
-
-                GotSpawn mesh ->
-                    ( checkState { meshes | spawn = Just mesh }, Cmd.none )
-
-                GotStraight mesh ->
-                    ( checkState { meshes | straight = Just mesh }, Cmd.none )
-
-                GotCorner mesh ->
-                    ( checkState { meshes | corner = Just mesh }, Cmd.none )
-
-                GotEnd mesh ->
-                    ( checkState { meshes | end = Just mesh }, Cmd.none )
-
-                GotOrcTower mesh ->
-                    ( checkState { meshes | orcTower = Just mesh }, Cmd.none )
+                GotMesh toMsg result ->
+                    ( handleState { meshes | meshes = Loading.update meshes.meshes (toMsg result) }, Cmd.none )
 
                 WindowResized viewport ->
                     ( Loading { meshes | viewport = viewport }, Cmd.none )
@@ -181,7 +100,7 @@ update msg model =
             ( model, Cmd.none )
 
 
-view : Model -> Html Msg
+view : Model -> Html (Msg Loading.Msg)
 view model =
     case model of
         Loading _ ->
@@ -207,20 +126,27 @@ view model =
             text "😔"
 
 
-subscriptions : Model -> Sub Msg
-subscriptions _ =
+subscriptions : Model -> Sub (Msg Loading.Msg)
+subscriptions model =
     let
-        decodeMouseMove : Json.Decode.Decoder Msg
+        decodeMouseMove : Json.Decode.Decoder (Msg Loading.Msg)
         decodeMouseMove =
             Json.Decode.map2 MouseMoved
                 (Json.Decode.field "pageX" (Json.Decode.map Pixels.float Json.Decode.float))
                 (Json.Decode.field "pageY" (Json.Decode.map Pixels.float Json.Decode.float))
     in
-    Sub.batch
-        [ Browser.Events.onResize (\width height -> WindowResized <| Viewport (toFloat width) (toFloat height))
-        , Browser.Events.onMouseMove decodeMouseMove
-        , Browser.Events.onAnimationFrameDelta NewFrame
-        ]
+    Sub.batch <|
+        List.concat
+            [ [ Browser.Events.onResize (\width height -> WindowResized <| Viewport (toFloat width) (toFloat height))
+              , Browser.Events.onMouseMove decodeMouseMove
+              ]
+            , case model of
+                Loaded _ ->
+                    [ Browser.Events.onAnimationFrameDelta NewFrame ]
+
+                _ ->
+                    []
+            ]
 
 
 ground : Scene3d.Entity GameCoordinates

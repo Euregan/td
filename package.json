@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "PARCEL_ELM_NO_DEBUG=1 parcel src/index.html --port 3000",
     "dev:debug": "parcel src/index.html --port 3000",
-    "build": "parcel build src/index.html"
+    "build": "parcel build src/index.html",
+    "generate": "elm-codegen run --output=src",
+    "generate:watch": "elm-codegen run --output=src --watch"
   },
   "author": "",
   "license": "ISC",
@@ -14,6 +16,7 @@
     "parcel": "^2.8.2"
   },
   "dependencies": {
-    "elm": "^0.19.1-5"
+    "elm": "^0.19.1-5",
+    "elm-codegen": "^0.2.0"
   }
 }
