@@ -46,7 +46,7 @@ path width length start end obstacles =
         (\( x, y ) ->
             [ ( x + 1, y ), ( x - 1, y ), ( x, y + 1 ), ( x, y - 1 ) ]
                 -- Filtering out positions outside the level
-                |> List.filter (\( x_, y_ ) -> x_ >= 0 && y_ >= 0 && x_ <= width && y_ <= length)
+                |> List.filter (\( x_, y_ ) -> x_ >= 0 && y_ >= 0 && x_ < width && y_ < length)
                 -- Filtering out occupied positions
                 |> List.filter (\( targetX, targetY ) -> List.all (\( obstacleX, obstacleY ) -> targetX /= obstacleX || targetY /= obstacleY) obstacles)
                 |> Set.fromList
