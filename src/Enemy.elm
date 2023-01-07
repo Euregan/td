@@ -70,8 +70,8 @@ view : Enemy -> Scene3d.Entity GameCoordinates
 view enemy =
     Scene3d.quadWithShadow
         (Scene3d.Material.matte Color.red)
-        (Point3d.meters 0 0 0)
-        (Point3d.meters 0.5 0 0)
-        (Point3d.meters 0.5 0.5 0)
-        (Point3d.meters 0 0.5 0)
+        (Point3d.meters -0.25 0 0)
+        (Point3d.meters 0.25 0 0)
+        (Point3d.meters 0.25 0.5 0)
+        (Point3d.meters -0.25 0.5 0)
         |> Scene3d.translateBy (Vector3d.xyz (Point2d.xCoordinate enemy.position) (Length.meters 0.2) (Point2d.yCoordinate enemy.position))

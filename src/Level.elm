@@ -19,6 +19,10 @@ type alias Level =
     }
 
 
+type Msg
+    = BuildingsChanged (List ( Int, Int ))
+
+
 init : ( Int, Int ) -> Level
 init ( width, length ) =
     let
@@ -32,21 +36,31 @@ init ( width, length ) =
     , length = length
     , start = start
     , end = end
-    , path = path width length start end
+    , path = path width length start end []
     }
 
 
-path : Int -> Int -> { x : Int, y : Int } -> { x : Int, y : Int } -> Path
-path width length start end =
+path : Int -> Int -> { x : Int, y : Int } -> { x : Int, y : Int } -> List ( Int, Int ) -> Path
+path width length start end obstacles =
     AStar.findPath AStar.straightLineCost
         (\( x, y ) ->
             [ ( x + 1, y ), ( x - 1, y ), ( x, y + 1 ), ( x, y - 1 ) ]
+                -- Filtering out positions outside the level
                 |> List.filter (\( x_, y_ ) -> x_ >= 0 && y_ >= 0 && x_ <= width && y_ <= length)
+                -- Filtering out occupied positions
+                |> List.filter (\( targetX, targetY ) -> List.all (\( obstacleX, obstacleY ) -> targetX /= obstacleX || targetY /= obstacleY) obstacles)
                 |> Set.fromList
         )
         ( start.x, start.y )
         ( end.x, end.y )
         |> Maybe.withDefault []
+
+
+update : Level -> Msg -> Level
+update level msg =
+    case msg of
+        BuildingsChanged buildings ->
+            { level | path = path level.width level.length level.start level.end buildings }
 
 
 view : Meshes -> Level -> Maybe Position -> List (Scene3d.Entity GameCoordinates)
