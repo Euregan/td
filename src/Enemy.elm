@@ -1,6 +1,6 @@
 module Enemy exposing (..)
 
-import AStar exposing (Path, Position)
+import AStar exposing (Path)
 import Color
 import Coordinates exposing (GameCoordinates)
 import Direction2d
@@ -11,7 +11,6 @@ import Point3d
 import Quantity
 import Scene3d
 import Scene3d.Material
-import Vector2d
 import Vector3d
 
 
@@ -22,12 +21,32 @@ type alias Enemy =
     }
 
 
+type Msg
+    = BuildingsChanged Level (List ( Int, Int ))
+
+
 init : Level -> Enemy
 init level =
     { position = Point2d.meters (toFloat level.start.x - 0.25) (toFloat level.start.y - 0.25)
     , path = level.path
     , speed = 0.002
     }
+
+
+update : Enemy -> Msg -> Enemy
+update enemy msg =
+    case msg of
+        BuildingsChanged level buildings ->
+            let
+                newPath =
+                    case List.head enemy.path of
+                        Nothing ->
+                            []
+
+                        Just ( x, y ) ->
+                            Level.path level.width level.length { x = x, y = y } level.end buildings
+            in
+            { enemy | path = newPath }
 
 
 tick : Float -> Enemy -> Enemy

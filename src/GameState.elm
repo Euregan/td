@@ -86,20 +86,27 @@ update msg state =
                         Just position ->
                             Player.build state.player position
 
-                level =
+                ( level, enemies ) =
                     case tile of
                         Nothing ->
-                            state.level
+                            ( state.level, state.enemies )
 
                         Just position ->
-                            Level.update state.level <|
-                                Level.BuildingsChanged <|
+                            let
+                                buildings =
                                     position
                                         :: (List.map (\building -> building.position) <|
                                                 List.concat [ state.player.buildings, List.concat <| List.map (\p -> p.buildings) <| state.players ]
                                            )
+
+                                updatedLevel =
+                                    Level.update state.level <| Level.BuildingsChanged buildings
+                            in
+                            ( updatedLevel
+                            , List.map (\enemy -> Enemy.update enemy <| Enemy.BuildingsChanged updatedLevel buildings) state.enemies
+                            )
             in
-            { state | mouseDown = Just { x = x, y = y }, player = player, level = level }
+            { state | mouseDown = Just { x = x, y = y }, player = player, level = level, enemies = enemies }
 
         MouseUp _ _ ->
             { state | mouseDown = Nothing }
