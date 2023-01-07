@@ -16,4 +16,6 @@ type Msg msg
     = GotMesh (MeshResult -> msg) MeshResult
     | WindowResized Viewport
     | MouseMoved (Quantity Float Pixels) (Quantity Float Pixels)
+    | MouseUp (Quantity Float Pixels) (Quantity Float Pixels)
+    | MouseDown (Quantity Float Pixels) (Quantity Float Pixels)
     | NewFrame Float

@@ -90,6 +90,12 @@ update msg model =
                 MouseMoved x y ->
                     ( Loaded <| GameState.update (GameState.MouseMoved x y) state, Cmd.none )
 
+                MouseDown x y ->
+                    ( Loaded <| GameState.update (GameState.MouseDown x y) state, Cmd.none )
+
+                MouseUp x y ->
+                    ( Loaded <| GameState.update (GameState.MouseUp x y) state, Cmd.none )
+
                 NewFrame delta ->
                     ( Loaded <| GameState.tick delta state, Cmd.none )
 
@@ -134,15 +140,30 @@ subscriptions model =
             Json.Decode.map2 MouseMoved
                 (Json.Decode.field "pageX" (Json.Decode.map Pixels.float Json.Decode.float))
                 (Json.Decode.field "pageY" (Json.Decode.map Pixels.float Json.Decode.float))
+
+        decodeMouseDown : Json.Decode.Decoder (Msg Loading.Msg)
+        decodeMouseDown =
+            Json.Decode.map2 MouseDown
+                (Json.Decode.field "pageX" (Json.Decode.map Pixels.float Json.Decode.float))
+                (Json.Decode.field "pageY" (Json.Decode.map Pixels.float Json.Decode.float))
+
+        decodeMouseUp : Json.Decode.Decoder (Msg Loading.Msg)
+        decodeMouseUp =
+            Json.Decode.map2 MouseUp
+                (Json.Decode.field "pageX" (Json.Decode.map Pixels.float Json.Decode.float))
+                (Json.Decode.field "pageY" (Json.Decode.map Pixels.float Json.Decode.float))
     in
     Sub.batch <|
         List.concat
             [ [ Browser.Events.onResize (\width height -> WindowResized <| Viewport (toFloat width) (toFloat height))
-              , Browser.Events.onMouseMove decodeMouseMove
               ]
             , case model of
                 Loaded _ ->
-                    [ Browser.Events.onAnimationFrameDelta NewFrame ]
+                    [ Browser.Events.onAnimationFrameDelta NewFrame
+                    , Browser.Events.onMouseMove decodeMouseMove
+                    , Browser.Events.onMouseDown decodeMouseDown
+                    , Browser.Events.onMouseUp decodeMouseUp
+                    ]
 
                 _ ->
                     []

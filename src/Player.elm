@@ -23,11 +23,34 @@ init =
 
 view : Meshes -> Player -> Maybe Position -> List (Scene3d.Entity GameCoordinates)
 view meshes player hovered =
-    case ( player.selected, hovered ) of
-        ( Just building, Just ( x, y ) ) ->
-            Building.mesh meshes building
+    let
+        buildings =
+            player.buildings
                 |> List.map
-                    (Scene3d.translateBy (Vector3d.meters (toFloat x) 0.3 (toFloat y)))
+                    (\building ->
+                        Building.mesh meshes building.blueprint
+                            |> List.map (Scene3d.translateBy (Vector3d.meters (toFloat <| Tuple.first building.position) 0.3 (toFloat <| Tuple.second building.position)))
+                    )
+                |> List.concat
+    in
+    case ( player.selected, hovered ) of
+        ( Just blueprint, Just ( x, y ) ) ->
+            List.concat
+                [ Building.mesh meshes blueprint
+                    |> List.map
+                        (Scene3d.translateBy (Vector3d.meters (toFloat x) 0.3 (toFloat y)))
+                , buildings
+                ]
 
         _ ->
-            []
+            buildings
+
+
+build : Player -> ( Int, Int ) -> Player
+build player position =
+    case player.selected of
+        Nothing ->
+            player
+
+        Just blueprint ->
+            { player | buildings = { blueprint = blueprint, position = position } :: player.buildings }

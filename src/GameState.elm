@@ -35,12 +35,15 @@ type alias GameState =
     , players : List Player
     , player : Player
     , enemies : List Enemy
+    , mouseDown : Maybe MousePosition
     }
 
 
 type Msg
     = WindowResized Viewport
     | MouseMoved (Quantity Float Pixels) (Quantity Float Pixels)
+    | MouseUp (Quantity Float Pixels) (Quantity Float Pixels)
+    | MouseDown (Quantity Float Pixels) (Quantity Float Pixels)
 
 
 init : Viewport -> Meshes -> GameState
@@ -57,6 +60,7 @@ init viewport meshes =
     , players = []
     , player = Player.init
     , enemies = [ Enemy.init level ]
+    , mouseDown = Nothing
     }
 
 
@@ -67,22 +71,25 @@ update msg state =
             { state | viewport = viewport }
 
         MouseMoved x y ->
-            let
-                axis =
-                    Camera3d.ray
-                        state.camera
-                        (Rectangle2d.from
-                            (Point2d.pixels 0 state.viewport.height)
-                            (Point2d.pixels state.viewport.width 0)
-                        )
-                        (Point2d.xy x y)
+            { state | hoveredTile = pointedTile state.camera state.viewport state.level { x = x, y = y } }
 
-                hoveredTile =
-                    Level.tiles state.level
-                        |> List.filter (intersectWithTile axis state.level)
-                        |> List.head
+        MouseDown x y ->
+            let
+                tile =
+                    pointedTile state.camera state.viewport state.level { x = x, y = y }
+
+                player =
+                    case tile of
+                        Nothing ->
+                            state.player
+
+                        Just position ->
+                            Player.build state.player position
             in
-            { state | hoveredTile = hoveredTile }
+            { state | mouseDown = Just { x = x, y = y }, player = player }
+
+        MouseUp _ _ ->
+            { state | mouseDown = Nothing }
 
 
 tick : Float -> GameState -> GameState
@@ -130,3 +137,20 @@ intersectWithTile axis level ( x, y ) =
 plane : SketchPlane3d Meters GameCoordinates defines
 plane =
     SketchPlane3d.xz
+
+
+pointedTile : Camera3d.Camera3d Meters GameCoordinates -> Viewport -> Level -> MousePosition -> Maybe Position
+pointedTile camera viewport level { x, y } =
+    let
+        axis =
+            Camera3d.ray
+                camera
+                (Rectangle2d.from
+                    (Point2d.pixels 0 viewport.height)
+                    (Point2d.pixels viewport.width 0)
+                )
+                (Point2d.xy x y)
+    in
+    Level.tiles level
+        |> List.filter (intersectWithTile axis level)
+        |> List.head
