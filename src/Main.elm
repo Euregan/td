@@ -9,6 +9,7 @@ import Direction3d
 import Flags exposing (Flags)
 import GameState exposing (GameState)
 import Html exposing (Html, text)
+import Illuminance
 import Json.Decode
 import Length
 import Level
@@ -19,6 +20,7 @@ import Pixels
 import Point3d
 import Random exposing (Seed)
 import Scene3d
+import Scene3d.Light
 import Scene3d.Material
 import Viewport exposing (Viewport)
 
@@ -123,15 +125,29 @@ view model =
                 { level, meshes, viewport, camera, hoveredTile } =
                     state
             in
-            Scene3d.sunny
-                { dimensions = ( Pixels.int <| floor viewport.width, Pixels.int <| floor viewport.height )
+            Scene3d.custom
+                { lights =
+                    Scene3d.twoLights
+                        (Scene3d.Light.directional (Scene3d.Light.castsShadows True)
+                            { chromaticity = Scene3d.Light.sunlight
+                            , intensity = Illuminance.lux 80000
+                            , direction = Direction3d.xyZ (Angle.degrees 130) (Angle.degrees 150)
+                            }
+                        )
+                        (Scene3d.Light.ambient
+                            { chromaticity = Scene3d.Light.sunlight
+                            , intensity = Illuminance.lux 13000
+                            }
+                        )
                 , camera = camera
                 , clipDepth = Length.meters 1
+                , exposure = Scene3d.exposureValue 13
+                , toneMapping = Scene3d.noToneMapping
+                , whiteBalance = Scene3d.Light.daylight
+                , antialiasing = Scene3d.noAntialiasing
+                , dimensions = ( Pixels.int <| floor viewport.width, Pixels.int <| floor viewport.height )
                 , background = Scene3d.transparentBackground
                 , entities = List.concat [ [ ground ], Level.view meshes level hoveredTile, GameState.view meshes state ]
-                , shadows = True
-                , sunlightDirection = Direction3d.xyZ (Angle.degrees 130) (Angle.degrees 150)
-                , upDirection = Direction3d.positiveY
                 }
 
         Error ->
