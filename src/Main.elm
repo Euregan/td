@@ -17,6 +17,7 @@ import Loading
 import Msg exposing (Msg(..))
 import Pixels
 import Point3d
+import Random exposing (Seed)
 import Scene3d
 import Scene3d.Material
 import Viewport exposing (Viewport)
@@ -29,8 +30,8 @@ type alias LoadingMeshes =
 
 
 type Model
-    = Loading LoadingMeshes
-    | Loaded GameState
+    = Loading Seed LoadingMeshes
+    | Loaded Seed GameState
     | Error
 
 
@@ -45,8 +46,9 @@ main =
 
 
 init : Flags -> ( Model, Cmd (Msg Loading.Msg) )
-init { viewport, models } =
+init { viewport, models, seed } =
     ( Loading
+        (Random.initialSeed seed)
         { viewport = viewport
         , meshes = Loading.init
         }
@@ -58,46 +60,50 @@ init { viewport, models } =
 update : Msg Loading.Msg -> Model -> ( Model, Cmd (Msg Loading.Msg) )
 update msg model =
     case model of
-        Loading meshes ->
+        Loading seed meshes ->
             let
                 handleState : LoadingMeshes -> Model
-                handleState state =
-                    case Loading.toMeshes state.meshes of
+                handleState loading =
+                    case Loading.toMeshes loading.meshes of
                         Nothing ->
-                            Loading state
+                            Loading seed loading
 
                         Just (Err _) ->
                             Error
 
                         Just (Ok models) ->
-                            Loaded <| GameState.init state.viewport models
+                            let
+                                ( state, finalSeed ) =
+                                    GameState.init seed loading.viewport models
+                            in
+                            Loaded finalSeed state
             in
             case msg of
                 GotMesh toMsg result ->
                     ( handleState { meshes | meshes = Loading.update meshes.meshes (toMsg result) }, Cmd.none )
 
                 WindowResized viewport ->
-                    ( Loading { meshes | viewport = viewport }, Cmd.none )
+                    ( Loading seed { meshes | viewport = viewport }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
-        Loaded state ->
+        Loaded seed state ->
             case msg of
                 WindowResized viewport ->
-                    ( Loaded <| GameState.update (GameState.WindowResized viewport) state, Cmd.none )
+                    ( Loaded seed <| GameState.update (GameState.WindowResized viewport) state, Cmd.none )
 
                 MouseMoved x y ->
-                    ( Loaded <| GameState.update (GameState.MouseMoved x y) state, Cmd.none )
+                    ( Loaded seed <| GameState.update (GameState.MouseMoved x y) state, Cmd.none )
 
                 MouseDown x y ->
-                    ( Loaded <| GameState.update (GameState.MouseDown x y) state, Cmd.none )
+                    ( Loaded seed <| GameState.update (GameState.MouseDown x y) state, Cmd.none )
 
                 MouseUp x y ->
-                    ( Loaded <| GameState.update (GameState.MouseUp x y) state, Cmd.none )
+                    ( Loaded seed <| GameState.update (GameState.MouseUp x y) state, Cmd.none )
 
                 NewFrame delta ->
-                    ( Loaded <| GameState.tick delta state, Cmd.none )
+                    ( Loaded seed <| GameState.tick delta state, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -109,10 +115,10 @@ update msg model =
 view : Model -> Html (Msg Loading.Msg)
 view model =
     case model of
-        Loading _ ->
-            text "🤔"
+        Loading _ _ ->
+            text "\u{1F914}"
 
-        Loaded state ->
+        Loaded _ state ->
             let
                 { level, meshes, viewport, camera, hoveredTile } =
                     state
@@ -158,7 +164,7 @@ subscriptions model =
             [ [ Browser.Events.onResize (\width height -> WindowResized <| Viewport (toFloat width) (toFloat height))
               ]
             , case model of
-                Loaded _ ->
+                Loaded _ _ ->
                     [ Browser.Events.onAnimationFrameDelta NewFrame
                     , Browser.Events.onMouseMove decodeMouseMove
                     , Browser.Events.onMouseDown decodeMouseDown

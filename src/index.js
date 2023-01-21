@@ -19,7 +19,8 @@ Elm.Main.init({
       straight,
       corner,
       end,
-      orcTower
-    }
+      orcTower,
+    },
+    seed: Math.round(Math.random() * 1000000),
   },
 });

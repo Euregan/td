@@ -234,5 +234,6 @@ flags =
             Elm.Annotation.record <|
                 [ ( "viewport", Elm.Annotation.named [ "Viewport" ] "Viewport" )
                 , ( "models", Elm.Annotation.named [] "Meshes" )
+                , ( "seed", Elm.Annotation.named [] "Int" )
                 ]
         ]

@@ -9,6 +9,7 @@ import Level exposing (Level)
 import Point2d exposing (Point2d)
 import Point3d
 import Quantity
+import Random exposing (Seed)
 import Scene3d
 import Scene3d.Material
 import Vector3d
@@ -16,6 +17,7 @@ import Vector3d
 
 type alias Enemy =
     { position : Point2d Meters GameCoordinates
+    , offset : ( Float, Float )
     , path : Path
     , speed : Float
     }
@@ -25,12 +27,19 @@ type Msg
     = BuildingsChanged Level (List ( Int, Int ))
 
 
-init : Level -> Enemy
-init level =
-    { position = Point2d.meters (toFloat level.start.x - 0.25) (toFloat level.start.y - 0.25)
-    , path = level.path
-    , speed = 0.002
-    }
+init : Seed -> Level -> ( Enemy, Seed )
+init seed level =
+    let
+        ( ( offsetX, offsetY ), newSeed ) =
+            Random.step (Random.map2 (\x y -> ( x, y )) (Random.float -0.5 0.5) (Random.float -0.5 0.5)) seed
+    in
+    ( { position = Point2d.meters (toFloat level.start.x - 0.25 + offsetX) (toFloat level.start.y - 0.25 + offsetY)
+      , offset = ( offsetX, offsetY )
+      , path = level.path
+      , speed = 0.002
+      }
+    , newSeed
+    )
 
 
 update : Enemy -> Msg -> Enemy

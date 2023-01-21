@@ -14,12 +14,14 @@ import Pixels exposing (Pixels)
 import Player exposing (Player)
 import Point2d
 import Quantity exposing (Quantity)
+import Random exposing (Seed)
 import Rectangle2d
 import Rectangle3d
 import Scene3d
 import SketchPlane3d exposing (SketchPlane3d)
 import Vector3d
 import Viewport exposing (Viewport)
+import Wave exposing (Wave)
 
 
 type alias MousePosition =
@@ -34,7 +36,7 @@ type alias GameState =
     , hoveredTile : Maybe Position
     , players : List Player
     , player : Player
-    , enemies : List Enemy
+    , wave : Wave
     , mouseDown : Maybe MousePosition
     }
 
@@ -46,22 +48,27 @@ type Msg
     | MouseDown (Quantity Float Pixels) (Quantity Float Pixels)
 
 
-init : Viewport -> Meshes -> GameState
-init viewport meshes =
+init : Seed -> Viewport -> Meshes -> ( GameState, Seed )
+init seed viewport meshes =
     let
         level =
             Level.init ( 15, 25 )
+
+        ( wave, finalSeed ) =
+            Wave.init seed level
     in
-    { level = level
-    , viewport = viewport
-    , meshes = meshes
-    , camera = Camera.init
-    , hoveredTile = Nothing
-    , players = []
-    , player = Player.init
-    , enemies = [ Enemy.init level ]
-    , mouseDown = Nothing
-    }
+    ( { level = level
+      , viewport = viewport
+      , meshes = meshes
+      , camera = Camera.init
+      , hoveredTile = Nothing
+      , players = []
+      , player = Player.init
+      , wave = wave
+      , mouseDown = Nothing
+      }
+    , finalSeed
+    )
 
 
 update : Msg -> GameState -> GameState
@@ -86,10 +93,10 @@ update msg state =
                         Just position ->
                             Player.build state.player position
 
-                ( level, enemies ) =
+                ( level, wave ) =
                     case tile of
                         Nothing ->
-                            ( state.level, state.enemies )
+                            ( state.level, state.wave )
 
                         Just position ->
                             let
@@ -103,10 +110,10 @@ update msg state =
                                     Level.update state.level <| Level.BuildingsChanged buildings
                             in
                             ( updatedLevel
-                            , List.map (\enemy -> Enemy.update enemy <| Enemy.BuildingsChanged updatedLevel buildings) state.enemies
+                            , { enemies = List.map (\enemy -> Enemy.update enemy <| Enemy.BuildingsChanged updatedLevel buildings) state.wave.enemies }
                             )
             in
-            { state | mouseDown = Just { x = x, y = y }, player = player, level = level, enemies = enemies }
+            { state | mouseDown = Just { x = x, y = y }, player = player, level = level, wave = wave }
 
         MouseUp _ _ ->
             { state | mouseDown = Nothing }
@@ -114,21 +121,13 @@ update msg state =
 
 tick : Float -> GameState -> GameState
 tick delta state =
-    { state | enemies = List.map (Enemy.tick delta) state.enemies }
+    { state | wave = Wave.tick delta state.wave }
 
 
 view : Meshes -> GameState -> List (Scene3d.Entity GameCoordinates)
 view meshes state =
     List.concat
-        [ List.map Enemy.view state.enemies
-            |> List.map
-                (Scene3d.translateBy
-                    (Vector3d.meters
-                        (toFloat state.level.width / -2)
-                        0
-                        (toFloat state.level.length / -2)
-                    )
-                )
+        [ Wave.view state.wave state.level
         , Player.view meshes state.player state.hoveredTile
             |> List.map
                 (Scene3d.translateBy
