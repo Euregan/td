@@ -1,6 +1,9 @@
 module Level exposing (..)
 
 import AStar exposing (Path, Position)
+import Angle
+import Array
+import Axis3d
 import Color
 import Coordinates exposing (GameCoordinates)
 import Meshes exposing (Meshes)
@@ -78,6 +81,9 @@ view meshes level hoveredTile =
         straight =
             List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.straight
 
+        corner =
+            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.corner
+
         position : List (Scene3d.Entity GameCoordinates) -> Int -> Int -> List (Scene3d.Entity GameCoordinates)
         position mesh x y =
             List.map
@@ -91,25 +97,125 @@ view meshes level hoveredTile =
                 mesh
     in
     tiles level
-        |> List.map
-            (\( x, y ) ->
+        |> pathMap
+            (\maybePrevious ( x, y ) maybeNext ->
                 position
-                    (if x == level.start.x && y == level.start.y then
-                        spawn
+                    (case ( maybePrevious, maybeNext ) of
+                        ( Nothing, Just ( nextX, nextY ) ) ->
+                            if nextX > x then
+                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 270))
 
-                     else if x == level.end.x && y == level.end.y then
-                        end
+                            else if nextX < x then
+                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 90))
 
-                     else if List.member ( x, y ) level.path then
-                        straight
+                            else if nextY > y then
+                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 180))
 
-                     else
-                        tile
+                            else
+                                spawn
+
+                        ( Just ( previousX, previousY ), Nothing ) ->
+                            if previousX > x then
+                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 270))
+
+                            else if previousX < x then
+                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 90))
+
+                            else if previousY > y then
+                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 180))
+
+                            else
+                                spawn
+
+                        ( Just previous, Just next ) ->
+                            case ( positionsToDirection ( x, y ) previous, positionsToDirection ( x, y ) next ) of
+                                ( Above, Below ) ->
+                                    straight
+
+                                ( Below, Above ) ->
+                                    straight
+
+                                ( Left, Right ) ->
+                                    straight |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 90))
+
+                                ( Right, Left ) ->
+                                    straight |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 90))
+
+                                ( Above, Right ) ->
+                                    corner
+
+                                ( Right, Above ) ->
+                                    corner
+
+                                ( Above, Left ) ->
+                                    corner |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 270))
+
+                                ( Left, Above ) ->
+                                    corner |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 270))
+
+                                ( Below, Right ) ->
+                                    corner |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 90))
+
+                                ( Right, Below ) ->
+                                    corner |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 90))
+
+                                ( Below, Left ) ->
+                                    corner |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 180))
+
+                                ( Left, Below ) ->
+                                    corner |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 180))
+
+                                -- This should never happen
+                                _ ->
+                                    []
+
+                        _ ->
+                            tile
                     )
                     x
                     y
             )
-        |> List.concat
+            level.path
+
+
+type Direction
+    = Left
+    | Right
+    | Above
+    | Below
+
+
+{-| Only works for two neighbor positions, otherwise the result will be Below
+-}
+positionsToDirection : Position -> Position -> Direction
+positionsToDirection ( originX, originY ) ( positionX, positionY ) =
+    if originY == positionY then
+        if originX > positionX then
+            Right
+
+        else
+            Left
+
+    else if originY > positionY then
+        Above
+
+    else
+        Below
+
+
+pathMap : (Maybe Position -> Position -> Maybe Position -> List (Scene3d.Entity GameCoordinates)) -> Path -> List Position -> List (Scene3d.Entity GameCoordinates)
+pathMap func p positions =
+    let
+        array =
+            Array.fromList p
+    in
+    List.concat
+        [ List.filter (\( x, y ) -> List.all (\( pathX, pathY ) -> pathX /= x || pathY /= y) p) positions
+            |> List.map (\position -> func Nothing position Nothing)
+            |> List.concat
+        , List.indexedMap (\index position -> func (Array.get (index - 1) array) position (Array.get (index + 1) array)) p
+            |> List.concat
+        ]
 
 
 tiles : Level -> List Position

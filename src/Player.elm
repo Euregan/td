@@ -29,7 +29,7 @@ view meshes player hovered =
                 |> List.map
                     (\building ->
                         Building.mesh meshes building.blueprint
-                            |> List.map (Scene3d.translateBy (Vector3d.meters (toFloat <| Tuple.first building.position) 0.3 (toFloat <| Tuple.second building.position)))
+                            |> List.map (Scene3d.translateBy (Vector3d.meters (toFloat <| Tuple.first building.position) builtHeight (toFloat <| Tuple.second building.position)))
                     )
                 |> List.concat
     in
@@ -38,7 +38,7 @@ view meshes player hovered =
             List.concat
                 [ Building.mesh meshes blueprint
                     |> List.map
-                        (Scene3d.translateBy (Vector3d.meters (toFloat x) 0.3 (toFloat y)))
+                        (Scene3d.translateBy (Vector3d.meters (toFloat x) hoverHeight (toFloat y)))
                 , buildings
                 ]
 
@@ -54,3 +54,13 @@ build player position =
 
         Just blueprint ->
             { player | buildings = { blueprint = blueprint, position = position } :: player.buildings }
+
+
+hoverHeight : Float
+hoverHeight =
+    0.3
+
+
+builtHeight : Float
+builtHeight =
+    0.15

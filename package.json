@@ -4,6 +4,7 @@
   "description": "",
   "scripts": {
     "dev": "PARCEL_ELM_NO_DEBUG=1 parcel src/index.html --port 3000",
+    "dev:windows": "set PARCEL_ELM_NO_DEBUG=1 &&parcel src/index.html --port 3000",
     "dev:debug": "parcel src/index.html --port 3000",
     "build": "npm run generate && parcel build src/index.html",
     "generate": "elm-codegen run --output=src",
