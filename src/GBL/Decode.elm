@@ -3,12 +3,14 @@ module GBL.Decode exposing (..)
 import Array exposing (Array)
 import Bytes exposing (Bytes)
 import Bytes.Decode
+import Color
 import Coordinates exposing (GameCoordinates)
 import Http
 import Json.Decode
 import Length exposing (Meters)
 import Point3d exposing (Point3d)
 import Quantity exposing (Unitless)
+import Scene3d.Material
 import Scene3d.Mesh
 import TriangularMesh
 import Vector3d exposing (Vector3d)
@@ -70,17 +72,29 @@ type alias RawAccessor =
     }
 
 
+type alias RawMaterial =
+    { name : String
+    , pbrMetallicRoughness : RawPbrMetallicRoughness
+    }
+
+
+type alias RawPbrMetallicRoughness =
+    { baseColorFactor : ( Float, Float, Float )
+    }
+
+
 type alias RawGbl =
     { meshes : Array RawMesh
     , buffers : Array RawBuffer
     , bufferViews : Array RawBufferView
     , accessors : Array RawAccessor
+    , materials : Array RawMaterial
     }
 
 
 decoder : Json.Decode.Decoder RawGbl
 decoder =
-    Json.Decode.map4 RawGbl
+    Json.Decode.map5 RawGbl
         (Json.Decode.field "meshes"
             (Json.Decode.array
                 (Json.Decode.map2 RawMesh
@@ -147,6 +161,22 @@ decoder =
                 )
             )
         )
+        (Json.Decode.field "materials"
+            (Json.Decode.array
+                (Json.Decode.map2 RawMaterial
+                    (Json.Decode.field "name" Json.Decode.string)
+                    (Json.Decode.at [ "pbrMetallicRoughness", "baseColorFactor" ]
+                        (Json.Decode.map RawPbrMetallicRoughness
+                            (Json.Decode.map3 (\r g b -> ( r, g, b ))
+                                (Json.Decode.index 0 Json.Decode.float)
+                                (Json.Decode.index 1 Json.Decode.float)
+                                (Json.Decode.index 2 Json.Decode.float)
+                            )
+                        )
+                    )
+                )
+            )
+        )
 
 
 type Error
@@ -200,7 +230,7 @@ decodeBytes =
                                 )
                             |> Bytes.Decode.andThen (\bytes -> Bytes.Decode.succeed ( mesh, bytes ))
 
-                    Err _ ->
+                    Err error ->
                         Bytes.Decode.fail
             )
         |> Bytes.Decode.decode
@@ -214,21 +244,24 @@ type alias MeshData =
             , uv : ( Float, Float )
             }
     , indices : List ( Int, Int, Int )
+    , color : ( Float, Float, Float )
     }
 
 
 rawToParsed : RawGbl -> Bytes -> Result String (List MeshData)
 rawToParsed raw bytes =
     let
-        maybeAccessors : List ( Maybe RawAccessor, Maybe RawAccessor, Maybe RawAccessor )
+        maybeAccessors : List ( ( Maybe RawAccessor, Maybe RawAccessor, Maybe RawAccessor ), Maybe ( Float, Float, Float ) )
         maybeAccessors =
             Array.map
                 (\mesh ->
                     Array.map
                         (\primitive ->
-                            ( Array.get primitive.attributes.position raw.accessors
-                            , Array.get primitive.attributes.normal raw.accessors
-                            , Array.get primitive.indices raw.accessors
+                            ( ( Array.get primitive.attributes.position raw.accessors
+                              , Array.get primitive.attributes.normal raw.accessors
+                              , Array.get primitive.indices raw.accessors
+                              )
+                            , Array.get primitive.material raw.materials |> Maybe.map (\material -> material.pbrMetallicRoughness.baseColorFactor)
                             )
                         )
                         mesh.primitives
@@ -237,7 +270,7 @@ rawToParsed raw bytes =
                 |> Array.toList
                 |> List.foldl (\acc list -> List.concat [ Array.toList acc, list ]) []
 
-        accessors : Result String (List ( RawAccessor, RawAccessor, RawAccessor ))
+        accessors : Result String (List ( ( RawAccessor, RawAccessor, RawAccessor ), ( Float, Float, Float ) ))
         accessors =
             maybeAccessors
                 |> List.foldl
@@ -246,38 +279,43 @@ rawToParsed raw bytes =
                             ( Just (Err error), _ ) ->
                                 Just (Err error)
 
-                            ( Just (Ok acc), ( Just position, Just normal, Just indice ) ) ->
-                                Just <| Ok <| ( position, normal, indice ) :: acc
+                            ( Just (Ok acc), ( ( Just position, Just normal, Just indice ), Just color ) ) ->
+                                Just <| Ok <| ( ( position, normal, indice ), color ) :: acc
 
-                            ( Nothing, ( Just position, Just normal, Just indice ) ) ->
-                                Just <| Ok <| [ ( position, normal, indice ) ]
+                            ( Nothing, ( ( Just position, Just normal, Just indice ), Just color ) ) ->
+                                Just <| Ok <| [ ( ( position, normal, indice ), color ) ]
 
-                            ( _, ( Nothing, _, _ ) ) ->
+                            ( _, ( ( Nothing, _, _ ), _ ) ) ->
                                 Just (Err "The position accessor could not be found")
 
-                            ( _, ( _, Nothing, _ ) ) ->
+                            ( _, ( ( _, Nothing, _ ), _ ) ) ->
                                 Just (Err "The normal accessor could not be found")
 
-                            ( _, ( _, _, Nothing ) ) ->
+                            ( _, ( ( _, _, Nothing ), _ ) ) ->
                                 Just (Err "The indice accessor could not be found")
+
+                            ( _, ( ( _, _, _ ), Nothing ) ) ->
+                                Just (Err "The material could not be found")
                     )
                     Nothing
                 |> Maybe.withDefault (Err "The mesh list cannot be empty")
 
-        resultMaybeViews : Result String (List ( ( RawAccessor, Maybe RawBufferView ), ( RawAccessor, Maybe RawBufferView ), ( RawAccessor, Maybe RawBufferView ) ))
+        resultMaybeViews : Result String (List ( ( ( RawAccessor, Maybe RawBufferView ), ( RawAccessor, Maybe RawBufferView ), ( RawAccessor, Maybe RawBufferView ) ), ( Float, Float, Float ) ))
         resultMaybeViews =
             accessors
                 |> Result.map
                     (List.map
-                        (\( position, normal, indice ) ->
-                            ( ( position, Array.get position.bufferView raw.bufferViews )
-                            , ( normal, Array.get normal.bufferView raw.bufferViews )
-                            , ( indice, Array.get indice.bufferView raw.bufferViews )
+                        (\( ( position, normal, indice ), color ) ->
+                            ( ( ( position, Array.get position.bufferView raw.bufferViews )
+                              , ( normal, Array.get normal.bufferView raw.bufferViews )
+                              , ( indice, Array.get indice.bufferView raw.bufferViews )
+                              )
+                            , color
                             )
                         )
                     )
 
-        views : Result String (List ( ( RawAccessor, RawBufferView ), ( RawAccessor, RawBufferView ), ( RawAccessor, RawBufferView ) ))
+        views : Result String (List ( ( ( RawAccessor, RawBufferView ), ( RawAccessor, RawBufferView ), ( RawAccessor, RawBufferView ) ), ( Float, Float, Float ) ))
         views =
             case resultMaybeViews of
                 Err error ->
@@ -291,25 +329,25 @@ rawToParsed raw bytes =
                                     ( Just (Err error), _ ) ->
                                         Just (Err error)
 
-                                    ( Just (Ok acc), ( ( positionAccessor, Just position ), ( normalAccessor, Just normal ), ( indiceAccessor, Just indice ) ) ) ->
-                                        Just <| Ok <| ( ( positionAccessor, position ), ( normalAccessor, normal ), ( indiceAccessor, indice ) ) :: acc
+                                    ( Just (Ok acc), ( ( ( positionAccessor, Just position ), ( normalAccessor, Just normal ), ( indiceAccessor, Just indice ) ), color ) ) ->
+                                        Just <| Ok <| ( ( ( positionAccessor, position ), ( normalAccessor, normal ), ( indiceAccessor, indice ) ), color ) :: acc
 
-                                    ( Nothing, ( ( positionAccessor, Just position ), ( normalAccessor, Just normal ), ( indiceAccessor, Just indice ) ) ) ->
-                                        Just <| Ok <| [ ( ( positionAccessor, position ), ( normalAccessor, normal ), ( indiceAccessor, indice ) ) ]
+                                    ( Nothing, ( ( ( positionAccessor, Just position ), ( normalAccessor, Just normal ), ( indiceAccessor, Just indice ) ), color ) ) ->
+                                        Just <| Ok <| [ ( ( ( positionAccessor, position ), ( normalAccessor, normal ), ( indiceAccessor, indice ) ), color ) ]
 
-                                    ( _, ( ( _, Nothing ), _, _ ) ) ->
+                                    ( _, ( ( ( _, Nothing ), _, _ ), _ ) ) ->
                                         Just (Err "The position buffer view could not be found")
 
-                                    ( _, ( _, ( _, Nothing ), _ ) ) ->
+                                    ( _, ( ( _, ( _, Nothing ), _ ), _ ) ) ->
                                         Just (Err "The normal buffer view could not be found")
 
-                                    ( _, ( _, _, ( _, Nothing ) ) ) ->
+                                    ( _, ( ( _, _, ( _, Nothing ) ), _ ) ) ->
                                         Just (Err "The indice buffer view could not be found")
                             )
                             Nothing
                         |> Maybe.withDefault (Err "The accessor list cannot be empty")
 
-        resultMaybeData : Result String (List ( Maybe (List ( Float, Float, Float )), Maybe (List ( Float, Float, Float )), Maybe (List ( Int, Int, Int )) ))
+        resultMaybeData : Result String (List ( ( Maybe (List ( Float, Float, Float )), Maybe (List ( Float, Float, Float )), Maybe (List ( Int, Int, Int )) ), ( Float, Float, Float ) ))
         resultMaybeData =
             case views of
                 Err error ->
@@ -318,72 +356,74 @@ rawToParsed raw bytes =
                 Ok bufferViews ->
                     bufferViews
                         |> List.map
-                            (\( ( positionAccessor, position ), ( normalAccessor, normal ), ( indiceAccessor, indice ) ) ->
-                                ( bytes
-                                    |> Bytes.Decode.decode
-                                        (Bytes.Decode.bytes position.byteOffset
-                                            |> Bytes.Decode.andThen
-                                                (\_ ->
-                                                    Bytes.Decode.loop ( 0, [] )
-                                                        (\( done, vertices ) ->
-                                                            if done < positionAccessor.count then
-                                                                Bytes.Decode.map3 (\x y z -> ( x, y, z ))
-                                                                    (Bytes.Decode.float32 Bytes.LE)
-                                                                    (Bytes.Decode.float32 Bytes.LE)
-                                                                    (Bytes.Decode.float32 Bytes.LE)
-                                                                    |> Bytes.Decode.map (\vector -> Bytes.Decode.Loop ( done + 1, vector :: vertices ))
+                            (\( ( ( positionAccessor, position ), ( normalAccessor, normal ), ( indiceAccessor, indice ) ), color ) ->
+                                ( ( bytes
+                                        |> Bytes.Decode.decode
+                                            (Bytes.Decode.bytes position.byteOffset
+                                                |> Bytes.Decode.andThen
+                                                    (\_ ->
+                                                        Bytes.Decode.loop ( 0, [] )
+                                                            (\( done, vertices ) ->
+                                                                if done < positionAccessor.count then
+                                                                    Bytes.Decode.map3 (\x y z -> ( x, y, z ))
+                                                                        (Bytes.Decode.float32 Bytes.LE)
+                                                                        (Bytes.Decode.float32 Bytes.LE)
+                                                                        (Bytes.Decode.float32 Bytes.LE)
+                                                                        |> Bytes.Decode.map (\vector -> Bytes.Decode.Loop ( done + 1, vector :: vertices ))
 
-                                                            else
-                                                                Bytes.Decode.Done vertices
-                                                                    |> Bytes.Decode.succeed
-                                                        )
-                                                )
-                                        )
-                                , bytes
-                                    |> Bytes.Decode.decode
-                                        (Bytes.Decode.bytes normal.byteOffset
-                                            |> Bytes.Decode.andThen
-                                                (\_ ->
-                                                    Bytes.Decode.loop ( 0, [] )
-                                                        (\( done, vertices ) ->
-                                                            if done < normalAccessor.count then
-                                                                Bytes.Decode.map3 (\x y z -> ( x, y, z ))
-                                                                    (Bytes.Decode.float32 Bytes.LE)
-                                                                    (Bytes.Decode.float32 Bytes.LE)
-                                                                    (Bytes.Decode.float32 Bytes.LE)
-                                                                    |> Bytes.Decode.map (\vector -> Bytes.Decode.Loop ( done + 1, vector :: vertices ))
+                                                                else
+                                                                    Bytes.Decode.Done vertices
+                                                                        |> Bytes.Decode.succeed
+                                                            )
+                                                    )
+                                            )
+                                  , bytes
+                                        |> Bytes.Decode.decode
+                                            (Bytes.Decode.bytes normal.byteOffset
+                                                |> Bytes.Decode.andThen
+                                                    (\_ ->
+                                                        Bytes.Decode.loop ( 0, [] )
+                                                            (\( done, vertices ) ->
+                                                                if done < normalAccessor.count then
+                                                                    Bytes.Decode.map3 (\x y z -> ( x, y, z ))
+                                                                        (Bytes.Decode.float32 Bytes.LE)
+                                                                        (Bytes.Decode.float32 Bytes.LE)
+                                                                        (Bytes.Decode.float32 Bytes.LE)
+                                                                        |> Bytes.Decode.map (\vector -> Bytes.Decode.Loop ( done + 1, vector :: vertices ))
 
-                                                            else
-                                                                Bytes.Decode.Done vertices
-                                                                    |> Bytes.Decode.succeed
-                                                        )
-                                                )
-                                        )
-                                , bytes
-                                    |> Bytes.Decode.decode
-                                        (Bytes.Decode.bytes indice.byteOffset
-                                            |> Bytes.Decode.andThen
-                                                (\_ ->
-                                                    Bytes.Decode.loop ( 0, [] )
-                                                        (\( done, vertices ) ->
-                                                            if done < indiceAccessor.count then
-                                                                Bytes.Decode.map3 (\x y z -> ( x, y, z ))
-                                                                    (Bytes.Decode.unsignedInt32 Bytes.LE)
-                                                                    (Bytes.Decode.unsignedInt32 Bytes.LE)
-                                                                    (Bytes.Decode.unsignedInt32 Bytes.LE)
-                                                                    |> Bytes.Decode.map (\vector -> Bytes.Decode.Loop ( done + 3, vector :: vertices ))
+                                                                else
+                                                                    Bytes.Decode.Done vertices
+                                                                        |> Bytes.Decode.succeed
+                                                            )
+                                                    )
+                                            )
+                                  , bytes
+                                        |> Bytes.Decode.decode
+                                            (Bytes.Decode.bytes indice.byteOffset
+                                                |> Bytes.Decode.andThen
+                                                    (\_ ->
+                                                        Bytes.Decode.loop ( 0, [] )
+                                                            (\( done, vertices ) ->
+                                                                if done < indiceAccessor.count then
+                                                                    Bytes.Decode.map3 (\x y z -> ( x, y, z ))
+                                                                        (Bytes.Decode.unsignedInt32 Bytes.LE)
+                                                                        (Bytes.Decode.unsignedInt32 Bytes.LE)
+                                                                        (Bytes.Decode.unsignedInt32 Bytes.LE)
+                                                                        |> Bytes.Decode.map (\vector -> Bytes.Decode.Loop ( done + 3, vector :: vertices ))
 
-                                                            else
-                                                                Bytes.Decode.Done vertices
-                                                                    |> Bytes.Decode.succeed
-                                                        )
-                                                )
-                                        )
+                                                                else
+                                                                    Bytes.Decode.Done vertices
+                                                                        |> Bytes.Decode.succeed
+                                                            )
+                                                    )
+                                            )
+                                  )
+                                , color
                                 )
                             )
                         |> Ok
 
-        data : Result String (List ( List ( Float, Float, Float ), List ( Float, Float, Float ), List ( Int, Int, Int ) ))
+        data : Result String (List ( ( List ( Float, Float, Float ), List ( Float, Float, Float ), List ( Int, Int, Int ) ), ( Float, Float, Float ) ))
         data =
             case resultMaybeData of
                 Err error ->
@@ -397,19 +437,19 @@ rawToParsed raw bytes =
                                     ( Just (Err error), _ ) ->
                                         Just <| Err error
 
-                                    ( Just (Ok list), ( Just positions, Just normals, Just indices ) ) ->
-                                        Just <| Ok <| ( positions, normals, indices ) :: list
+                                    ( Just (Ok list), ( ( Just positions, Just normals, Just indices ), color ) ) ->
+                                        Just <| Ok <| ( ( positions, normals, indices ), color ) :: list
 
-                                    ( Nothing, ( Just positions, Just normals, Just indices ) ) ->
-                                        Just <| Ok <| [ ( positions, normals, indices ) ]
+                                    ( Nothing, ( ( Just positions, Just normals, Just indices ), color ) ) ->
+                                        Just <| Ok <| [ ( ( positions, normals, indices ), color ) ]
 
-                                    ( _, ( Nothing, _, _ ) ) ->
+                                    ( _, ( ( Nothing, _, _ ), _ ) ) ->
                                         Just <| Err "The positions failed to be parsed"
 
-                                    ( _, ( _, Nothing, _ ) ) ->
+                                    ( _, ( ( _, Nothing, _ ), _ ) ) ->
                                         Just <| Err "The normals failed to be parsed"
 
-                                    ( _, ( _, _, Nothing ) ) ->
+                                    ( _, ( ( _, _, Nothing ), _ ) ) ->
                                         Just <| Err "The indices failed to be parsed"
                             )
                             Nothing
@@ -417,7 +457,7 @@ rawToParsed raw bytes =
     in
     Result.map
         (List.map
-            (\( position, normal, indices ) ->
+            (\( ( position, normal, indices ), color ) ->
                 MeshData
                     (List.map2
                         (\( posX, posY, posZ ) ( normX, normY, normZ ) ->
@@ -431,12 +471,13 @@ rawToParsed raw bytes =
                         |> Array.fromList
                     )
                     indices
+                    color
             )
         )
         data
 
 
-parsedToMesh : List MeshData -> List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )
+parsedToMesh : List MeshData -> List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Material.Material GameCoordinates { normals : (), uvs : () }, Scene3d.Mesh.Shadow GameCoordinates )
 parsedToMesh =
     List.map
         (\data ->
@@ -447,12 +488,23 @@ parsedToMesh =
 
                 shadow =
                     Scene3d.Mesh.shadow mesh
+
+                material =
+                    let
+                        ( r, g, b ) =
+                            data.color
+                    in
+                    Scene3d.Material.texturedPbr
+                        { baseColor = Scene3d.Material.constant <| Color.fromRgba { red = r, green = g, blue = b, alpha = 1 }
+                        , roughness = Scene3d.Material.constant 1
+                        , metallic = Scene3d.Material.constant 1
+                        }
             in
-            ( mesh, shadow )
+            ( mesh, material, shadow )
         )
 
 
-expectGBL : (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Mesh.Shadow GameCoordinates )) -> msg) -> Http.Expect msg
+expectGBL : (Result Http.Error (List ( Scene3d.Mesh.Textured GameCoordinates, Scene3d.Material.Material GameCoordinates { normals : (), uvs : () }, Scene3d.Mesh.Shadow GameCoordinates )) -> msg) -> Http.Expect msg
 expectGBL toMsg =
     Http.expectBytesResponse toMsg <|
         \response ->

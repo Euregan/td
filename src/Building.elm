@@ -22,4 +22,4 @@ mesh meshes blueprint =
     case blueprint of
         OrcTower ->
             meshes.orcTower
-                |> List.map (\( m, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.lightBlue) m shadow)
+                |> List.map (\( m, material, shadow ) -> Scene3d.meshWithShadow material m shadow)

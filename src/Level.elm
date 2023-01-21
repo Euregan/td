@@ -70,19 +70,19 @@ view : Meshes -> Level -> Maybe Position -> List (Scene3d.Entity GameCoordinates
 view meshes level hoveredTile =
     let
         tile =
-            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.tile
+            List.map (\( mesh, material, shadow ) -> Scene3d.meshWithShadow material mesh shadow) meshes.tile
 
         spawn =
-            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.spawn
+            List.map (\( mesh, material, shadow ) -> Scene3d.meshWithShadow material mesh shadow) meshes.spawn
 
         end =
-            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.end
+            List.map (\( mesh, material, shadow ) -> Scene3d.meshWithShadow material mesh shadow) meshes.end
 
         straight =
-            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.straight
+            List.map (\( mesh, material, shadow ) -> Scene3d.meshWithShadow material mesh shadow) meshes.straight
 
         corner =
-            List.map (\( mesh, shadow ) -> Scene3d.meshWithShadow (Scene3d.Material.matte Color.green) mesh shadow) meshes.corner
+            List.map (\( mesh, material, shadow ) -> Scene3d.meshWithShadow material mesh shadow) meshes.corner
 
         position : List (Scene3d.Entity GameCoordinates) -> Int -> Int -> List (Scene3d.Entity GameCoordinates)
         position mesh x y =

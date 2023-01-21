@@ -36,7 +36,7 @@ meshes =
                 List.map
                     (\asset ->
                         ( asset
-                        , Elm.Annotation.list <| Elm.Annotation.tuple meshAnnotation shadowAnnotation
+                        , Elm.Annotation.list <| Elm.Annotation.triple meshAnnotation materialAnnotation shadowAnnotation
                         )
                     )
                     assets
@@ -46,6 +46,8 @@ meshes =
 meshAnnotation =
     Elm.Annotation.namedWith [ "Scene3d.Mesh" ] "Textured" [ Elm.Annotation.named [ "Coordinates" ] "GameCoordinates" ]
 
+materialAnnotation =
+    Elm.Annotation.namedWith [ "Scene3d", "Material" ] "Material" [ Elm.Annotation.named [ "Coordinates" ] "GameCoordinates", Elm.Annotation.record [ ( "normals", Elm.Annotation.unit ), ( "uvs", Elm.Annotation.unit ) ] ]
 
 shadowAnnotation =
     Elm.Annotation.namedWith [ "Scene3d.Mesh" ] "Shadow" [ Elm.Annotation.named [ "Coordinates" ] "GameCoordinates" ]
@@ -55,7 +57,7 @@ loadingAnnotation =
     Elm.Annotation.maybe <|
         Elm.Annotation.result (Elm.Annotation.named [ "Http" ] "Error") <|
             Elm.Annotation.list <|
-                Elm.Annotation.tuple meshAnnotation shadowAnnotation
+                Elm.Annotation.triple meshAnnotation materialAnnotation shadowAnnotation
 
 
 loading : Elm.File
@@ -72,7 +74,7 @@ loading =
                     Elm.variantWith ("Got" ++ capitalize asset)
                         [ Elm.Annotation.result (Elm.Annotation.named [ "Http" ] "Error") <|
                             Elm.Annotation.list <|
-                                Elm.Annotation.tuple meshAnnotation shadowAnnotation
+                                Elm.Annotation.triple meshAnnotation materialAnnotation shadowAnnotation
                         ]
                 )
                 assets
@@ -111,7 +113,7 @@ loading =
                 ( "msg"
                 , Just
                     (Elm.Annotation.function
-                        [ Elm.Annotation.result (Elm.Annotation.named [ "Http" ] "Error") <| Elm.Annotation.list <| Elm.Annotation.tuple meshAnnotation shadowAnnotation ]
+                        [ Elm.Annotation.result (Elm.Annotation.named [ "Http" ] "Error") <| Elm.Annotation.list <| Elm.Annotation.triple meshAnnotation materialAnnotation shadowAnnotation ]
                         (Elm.Annotation.named [] "Msg")
                     )
                 )
@@ -131,7 +133,7 @@ loading =
                     (Elm.Annotation.function
                         [ Elm.Annotation.string
                         , Elm.Annotation.function
-                            [ Elm.Annotation.result (Elm.Annotation.named [ "Http" ] "Error") <| Elm.Annotation.list <| Elm.Annotation.tuple meshAnnotation shadowAnnotation ]
+                            [ Elm.Annotation.result (Elm.Annotation.named [ "Http" ] "Error") <| Elm.Annotation.list <| Elm.Annotation.triple meshAnnotation materialAnnotation shadowAnnotation ]
                             (Elm.Annotation.named [] "Msg")
                         ]
                         (Elm.Annotation.namedWith
