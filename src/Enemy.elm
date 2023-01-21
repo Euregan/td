@@ -31,7 +31,7 @@ init : Seed -> Level -> ( Enemy, Seed )
 init seed level =
     let
         ( ( offsetX, offsetY ), newSeed ) =
-            Random.step (Random.map2 (\x y -> ( x, y )) (Random.float -0.5 0.5) (Random.float -0.5 0.5)) seed
+            Random.step (Random.map2 (\x y -> ( x, y )) (Random.float -0.3 0.3) (Random.float -0.4 0.4)) seed
     in
     ( { position = Point2d.meters (toFloat level.start.x - 0.25 + offsetX) (toFloat level.start.y - 0.25 + offsetY)
       , offset = ( offsetX, offsetY )
@@ -63,7 +63,7 @@ tick delta enemy =
     let
         destination =
             List.head enemy.path
-                |> Maybe.map (\( x, y ) -> Point2d.meters (toFloat x) (toFloat y))
+                |> Maybe.map (\( x, y ) -> Point2d.meters (toFloat x + Tuple.first enemy.offset) (toFloat y))
 
         maybeDirection =
             Maybe.andThen (\dest -> Maybe.map (\direction -> ( direction, dest )) (Direction2d.from enemy.position dest)) destination
