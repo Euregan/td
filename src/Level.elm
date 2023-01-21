@@ -4,11 +4,9 @@ import AStar exposing (Path, Position)
 import Angle
 import Array
 import Axis3d
-import Color
 import Coordinates exposing (GameCoordinates)
 import Meshes exposing (Meshes)
 import Scene3d
-import Scene3d.Material
 import Set
 import Vector3d
 
@@ -116,16 +114,16 @@ view meshes level hoveredTile =
 
                         ( Just ( previousX, previousY ), Nothing ) ->
                             if previousX > x then
-                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 270))
+                                end |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 270))
 
                             else if previousX < x then
-                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 90))
+                                end |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 90))
 
                             else if previousY > y then
-                                spawn |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 180))
+                                end |> List.map (Scene3d.rotateAround Axis3d.y (Angle.degrees 180))
 
                             else
-                                spawn
+                                end
 
                         ( Just previous, Just next ) ->
                             case ( positionsToDirection ( x, y ) previous, positionsToDirection ( x, y ) next ) of

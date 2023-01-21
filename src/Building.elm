@@ -1,10 +1,8 @@
 module Building exposing (..)
 
-import Color
 import Coordinates exposing (GameCoordinates)
 import Meshes exposing (Meshes)
 import Scene3d
-import Scene3d.Material
 
 
 type Blueprint
