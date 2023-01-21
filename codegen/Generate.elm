@@ -15,7 +15,10 @@ assets =
     , "straight"
     , "corner"
     , "end"
-    , "orcTower"
+    , "orcTowerBase"
+    , "orcTowerBottom"
+    , "orcTowerMiddle"
+    , "orcTowerTop"
     ]
 
 

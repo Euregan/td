@@ -19,7 +19,7 @@ init =
         { viewpoint =
             Viewpoint3d.lookAt
                 { focalPoint = Point3d.origin
-                , eyePoint = Point3d.meters 40 40 40
+                , eyePoint = Point3d.meters 40 55 40
                 , upDirection = Direction3d.positiveY
                 }
         , verticalFieldOfView = Angle.degrees 20
