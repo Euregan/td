@@ -2,6 +2,7 @@ module GameState exposing (..)
 
 import AStar exposing (Position)
 import Axis3d exposing (Axis3d)
+import Building exposing (Building)
 import Camera exposing (Camera)
 import Camera3d
 import Coordinates exposing (GameCoordinates)
@@ -121,7 +122,20 @@ update msg state =
 
 tick : Float -> GameState -> GameState
 tick delta state =
-    { state | wave = Wave.tick delta state.wave }
+    let
+        updatedWave =
+            Wave.tick delta state.wave
+
+        ( player, enemies ) =
+            Player.tick delta updatedWave.enemies state.player
+
+        finalWave =
+            { updatedWave | enemies = enemies }
+    in
+    { state
+        | wave = finalWave
+        , player = player
+    }
 
 
 view : Meshes -> GameState -> List (Scene3d.Entity GameCoordinates)

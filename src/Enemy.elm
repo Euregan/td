@@ -20,6 +20,8 @@ type alias Enemy =
     , offset : ( Float, Float )
     , path : Path
     , speed : Float
+    , currentHp : Int
+    , maxHp : Int
     }
 
 
@@ -37,6 +39,8 @@ init seed level =
       , offset = ( offsetX, offsetY )
       , path = level.path
       , speed = 0.002
+      , maxHp = 20
+      , currentHp = 20
       }
     , newSeed
     )

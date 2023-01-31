@@ -3,6 +3,7 @@ module Player exposing (..)
 import AStar exposing (Position)
 import Building exposing (Blueprint(..), Building)
 import Coordinates exposing (GameCoordinates)
+import Enemy exposing (Enemy, update)
 import Meshes exposing (Meshes)
 import Scene3d
 import Vector3d
@@ -53,7 +54,25 @@ build player position =
             player
 
         Just blueprint ->
-            { player | buildings = { blueprint = blueprint, position = position } :: player.buildings }
+            { player | buildings = Building.init blueprint position :: player.buildings }
+
+
+tick : Float -> List Enemy -> Player -> ( Player, List Enemy )
+tick delta enemies player =
+    let
+        ( buildings, updatedEnemies ) =
+            List.foldr
+                (\building ( previouslyUpdatedBuildings, previouslyUpdatedEnemies ) ->
+                    let
+                        ( updatedBuilding, newlyUpdatedEnemies ) =
+                            Building.tick delta previouslyUpdatedEnemies building
+                    in
+                    ( updatedBuilding :: previouslyUpdatedBuildings, newlyUpdatedEnemies )
+                )
+                ( [], enemies )
+                player.buildings
+    in
+    ( { player | buildings = buildings }, updatedEnemies )
 
 
 hoverHeight : Float
