@@ -125,7 +125,7 @@ loading =
                         [ Elm.record
                             [ ( "url", model )
                             , ( "expect"
-                              , Elm.apply (Elm.value { importFrom = [ "GBL", "Decode" ], name = "expectGBL", annotation = Nothing })
+                              , Elm.apply (Elm.value { importFrom = [ "GBL", "Decode" ], name = "expectGltf", annotation = Nothing })
                                     [ Elm.apply (Elm.value { importFrom = [ "Msg" ], name = "GotMesh", annotation = Nothing }) [ msg ]
                                     ]
                               )

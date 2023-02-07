@@ -118,7 +118,7 @@ view : Model -> Html (Msg Loading.Msg)
 view model =
     case model of
         Loading _ _ ->
-            text "\u{1F914}"
+            text "🤔"
 
         Loaded _ state ->
             let
