@@ -1,7 +1,5 @@
 module Effect exposing (..)
 
-import Enemy exposing (Enemy)
-
 
 type Effect
     = Damage

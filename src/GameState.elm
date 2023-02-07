@@ -2,11 +2,10 @@ module GameState exposing (..)
 
 import AStar exposing (Position)
 import Axis3d exposing (Axis3d)
-import Building exposing (Building)
 import Camera exposing (Camera)
 import Camera3d
 import Coordinates exposing (GameCoordinates)
-import Enemy exposing (Enemy)
+import Enemy
 import Length exposing (Meters)
 import Level exposing (Level)
 import Math exposing (pointInRectangle)

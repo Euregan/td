@@ -1,6 +1,6 @@
 module Building exposing (..)
 
-import Circle2d exposing (Circle2d)
+import Circle2d
 import Coordinates exposing (GameCoordinates)
 import Effect exposing (Effect(..))
 import Enemy exposing (Enemy)
