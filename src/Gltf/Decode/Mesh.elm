@@ -235,10 +235,6 @@ type alias Primitive coordinates =
 
 getPrimitiveAttributes : Raw.Gltf -> Bytes -> Raw.Mesh -> Int -> Raw.MeshPrimitive -> Result String (Primitive coordinates)
 getPrimitiveAttributes gltf bytes mesh primitiveIndex primitive =
-    let
-        debug =
-            Debug.log "length" ( Bytes.width bytes, mesh.name )
-    in
     Result.map4 Primitive
         (getPositions gltf bytes primitive
             |> Result.mapError (\_ -> "The mesh" ++ (mesh.name |> Maybe.map (\name -> " " ++ name) |> Maybe.withDefault "") ++ "'s primitive (" ++ String.fromInt primitiveIndex ++ ") has no positions")
