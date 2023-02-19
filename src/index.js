@@ -8,6 +8,7 @@ import orcTowerBase from "url:../static/towerRound_base.glb";
 import orcTowerBottom from "url:../static/towerRound_bottomA.glb";
 import orcTowerMiddle from "url:../static/towerRound_middleA.glb";
 import orcTowerTop from "url:../static/towerRound_topB.glb";
+import characterSkeleton from "url:../static/characterSkeleton.glb";
 
 Elm.Main.init({
   node: document.getElementById("root"),
@@ -26,6 +27,7 @@ Elm.Main.init({
       orcTowerBottom,
       orcTowerMiddle,
       orcTowerTop,
+      characterSkeleton,
     },
     seed: Math.round(Math.random() * 1000000),
   },

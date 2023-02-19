@@ -6,12 +6,12 @@ import Coordinates exposing (GameCoordinates)
 import Direction2d
 import Length exposing (Meters)
 import Level exposing (Level)
+import Meshes exposing (Meshes)
 import Point2d exposing (Point2d)
 import Point3d
 import Quantity
 import Random exposing (Seed)
 import Scene3d
-import Scene3d.Material
 import Vector3d
 
 
@@ -98,12 +98,13 @@ tick delta enemy =
                 }
 
 
-view : Enemy -> Scene3d.Entity GameCoordinates
-view enemy =
-    Scene3d.quadWithShadow
-        (Scene3d.Material.matte Color.red)
-        (Point3d.meters -0.25 0 0)
-        (Point3d.meters 0.25 0 0)
-        (Point3d.meters 0.25 0.5 0)
-        (Point3d.meters -0.25 0.5 0)
+view : Meshes -> Enemy -> Scene3d.Entity GameCoordinates
+view meshes enemy =
+    meshes.characterSkeleton
+        |> List.map (\( m, material, shadow ) -> Scene3d.meshWithShadow material m shadow)
+        |> Scene3d.group
         |> Scene3d.translateBy (Vector3d.xyz (Point2d.xCoordinate enemy.position) (Length.meters 0.2) (Point2d.yCoordinate enemy.position))
+
+
+
+-- |> Scene3d.scaleAbout (Point3d.xyz (Point2d.xCoordinate enemy.position) (Length.meters 0) (Point2d.yCoordinate enemy.position)) 0.4

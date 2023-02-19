@@ -140,7 +140,7 @@ tick delta state =
 view : Meshes -> GameState -> List (Scene3d.Entity GameCoordinates)
 view meshes state =
     List.concat
-        [ Wave.view state.wave state.level
+        [ Wave.view meshes state.wave state.level
         , Player.view meshes state.player state.hoveredTile
             |> List.map
                 (Scene3d.translateBy
