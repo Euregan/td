@@ -19,6 +19,7 @@ assets =
     , "orcTowerBottom"
     , "orcTowerMiddle"
     , "orcTowerTop"
+    , "characterSkeleton"
     ]
 
 

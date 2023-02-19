@@ -7,6 +7,8 @@ import Color exposing (Color)
 import Gltf.Decode.Json.Raw as Raw
 import Json.Decode
 import Length exposing (Meters)
+import Math.Matrix4 exposing (Mat4)
+import Math.Vector3
 import Point3d exposing (Point3d)
 import Quantity exposing (Unitless)
 import TriangularMesh exposing (TriangularMesh)
@@ -47,13 +49,13 @@ getNode gltf nodeIndex =
             Err <| "There is no node at index " ++ String.fromInt nodeIndex ++ ", as the node array is only " ++ (String.fromInt <| Array.length gltf.nodes) ++ " items long"
 
 
-getMeshes : Raw.Gltf -> Raw.Node -> Result String (List Raw.Mesh)
+getMeshes : Raw.Gltf -> Raw.Node -> Result String (List ( Raw.Mesh, Mat4 ))
 getMeshes gltf node =
     case ( node.mesh, node.children ) of
         ( Just meshIndex, _ ) ->
             case Array.get meshIndex gltf.meshes of
                 Just mesh ->
-                    Ok [ mesh ]
+                    Ok [ ( mesh, node.matrix ) ]
 
                 Nothing ->
                     Err <| "There is no mesh at index " ++ String.fromInt meshIndex ++ ", as the mesh array is only " ++ (String.fromInt <| Array.length gltf.meshes) ++ " items long"
@@ -65,65 +67,110 @@ getMeshes gltf node =
             children
                 |> List.map (getNode gltf)
                 |> List.map (Result.andThen <| getMeshes gltf)
+                |> List.map (Result.map (List.map <| \( mesh, modifier ) -> ( mesh, Math.Matrix4.mul modifier node.matrix )))
                 |> resultFromList
                 |> Result.map List.concat
 
 
-getVec3 : Bytes.Decode.Decoder a -> Int -> Raw.Gltf -> Bytes -> Int -> Result String (List ( a, a, a ))
-getVec3 scalarDecoder loopOffset gltf bytes accessorIndex =
+mapAccessor : (Raw.Accessor -> Result String (Bytes.Decode.Decoder a)) -> Raw.Gltf -> Bytes -> Int -> Result String a
+mapAccessor decoderConstructor gltf bytes accessorIndex =
     case Array.get accessorIndex gltf.accessors of
         Just accessor ->
-            case accessor.bufferView of
-                Just bufferViewIndex ->
-                    case Array.get bufferViewIndex gltf.bufferViews of
-                        Just bufferView ->
-                            let
-                                raw =
-                                    Bytes.Decode.decode
-                                        (skipBytes
-                                            (accessor.byteOffset + bufferView.byteOffset)
-                                            (Bytes.Decode.loop ( 0, [] )
-                                                (\( done, vertices ) ->
-                                                    if done < accessor.count then
-                                                        Bytes.Decode.map3 (\x y z -> ( x, y, z ))
-                                                            scalarDecoder
-                                                            scalarDecoder
-                                                            scalarDecoder
-                                                            |> Bytes.Decode.map (\vector -> Bytes.Decode.Loop ( done + loopOffset, vector :: vertices ))
-
-                                                    else
-                                                        Bytes.Decode.Done vertices
-                                                            |> Bytes.Decode.succeed
+            Result.andThen
+                (\decoder ->
+                    case accessor.bufferView of
+                        Just bufferViewIndex ->
+                            case Array.get bufferViewIndex gltf.bufferViews of
+                                Just bufferView ->
+                                    let
+                                        raw =
+                                            Bytes.Decode.decode
+                                                (skipBytes
+                                                    (accessor.byteOffset + bufferView.byteOffset)
+                                                    decoder
                                                 )
-                                            )
-                                        )
-                                        bytes
-                            in
-                            case raw of
-                                Just positions ->
-                                    Ok positions
+                                                bytes
+                                    in
+                                    case raw of
+                                        Just result ->
+                                            Ok result
+
+                                        Nothing ->
+                                            Err <| "Could not fetch accessor " ++ String.fromInt accessorIndex ++ " VEC3 data"
 
                                 Nothing ->
-                                    Err <| "Could not fetch accessor " ++ String.fromInt accessorIndex ++ " VEC3 data"
+                                    Err <| "There is no buffer view at index " ++ String.fromInt bufferViewIndex ++ ", as the buffer view array is only " ++ (String.fromInt <| Array.length gltf.bufferViews) ++ " items long"
 
                         Nothing ->
-                            Err <| "There is no buffer view at index " ++ String.fromInt bufferViewIndex ++ ", as the buffer view array is only " ++ (String.fromInt <| Array.length gltf.bufferViews) ++ " items long"
-
-                Nothing ->
-                    Err <| "The accessor at index " ++ String.fromInt accessorIndex ++ " has no buffer view index"
+                            Err <| "The accessor at index " ++ String.fromInt accessorIndex ++ " has no buffer view index"
+                )
+            <|
+                decoderConstructor accessor
 
         Nothing ->
             Err <| "There is no accessor at index " ++ String.fromInt accessorIndex ++ ", as the accessor array is only " ++ (String.fromInt <| Array.length gltf.accessors) ++ " items long"
 
 
+loop : Int -> Bytes.Decode.Decoder a -> Int -> Bytes.Decode.Decoder (List ( a, a, a ))
+loop increment decoder count =
+    Bytes.Decode.loop ( 0, [] )
+        (\( done, vertices ) ->
+            if done < count then
+                Bytes.Decode.map3 (\x y z -> ( x, y, z ))
+                    decoder
+                    decoder
+                    decoder
+                    |> Bytes.Decode.map (\vector -> Bytes.Decode.Loop ( done + increment, vector :: vertices ))
+
+            else
+                Bytes.Decode.Done vertices
+                    |> Bytes.Decode.succeed
+        )
+
+
 getFloatVec3 : Raw.Gltf -> Bytes -> Int -> Result String (List ( Float, Float, Float ))
 getFloatVec3 =
-    getVec3 (Bytes.Decode.float32 Bytes.LE) 1
+    mapAccessor
+        (\accessor ->
+            let
+                decoderResult =
+                    case accessor.componentType of
+                        Raw.Float ->
+                            Ok <| Bytes.Decode.float32 Bytes.LE
+
+                        _ ->
+                            Err <| "Accessor" ++ (accessor.name |> Maybe.map (\name -> " " ++ name) |> Maybe.withDefault "") ++ " was expected to point to a float"
+            in
+            decoderResult
+                |> Result.map
+                    (\decoder ->
+                        loop 1 decoder accessor.count
+                    )
+        )
 
 
 getIntVec3 : Raw.Gltf -> Bytes -> Int -> Result String (List ( Int, Int, Int ))
 getIntVec3 =
-    getVec3 (Bytes.Decode.unsignedInt32 Bytes.LE) 3
+    mapAccessor
+        (\accessor ->
+            let
+                decoderResult =
+                    case accessor.componentType of
+                        Raw.UnsignedShort ->
+                            Ok <| Bytes.Decode.unsignedInt16 Bytes.LE
+
+                        Raw.UnsignedInt ->
+                            Ok <| Bytes.Decode.unsignedInt32 Bytes.LE
+
+                        _ ->
+                            Err <| "Accessor" ++ (accessor.name |> Maybe.map (\name -> " " ++ name) |> Maybe.withDefault "") ++ " was expected to point to an integer"
+            in
+            decoderResult
+                |> Result.map
+                    (\decoder ->
+                        loop 3 decoder accessor.count
+                    )
+        )
 
 
 getPositions : Raw.Gltf -> Bytes -> Raw.MeshPrimitive -> Result String (List (Point3d Meters coordinates))
@@ -188,6 +235,10 @@ type alias Primitive coordinates =
 
 getPrimitiveAttributes : Raw.Gltf -> Bytes -> Raw.Mesh -> Int -> Raw.MeshPrimitive -> Result String (Primitive coordinates)
 getPrimitiveAttributes gltf bytes mesh primitiveIndex primitive =
+    let
+        debug =
+            Debug.log "length" ( Bytes.width bytes, mesh.name )
+    in
     Result.map4 Primitive
         (getPositions gltf bytes primitive
             |> Result.mapError (\_ -> "The mesh" ++ (mesh.name |> Maybe.map (\name -> " " ++ name) |> Maybe.withDefault "") ++ "'s primitive (" ++ String.fromInt primitiveIndex ++ ") has no positions")
@@ -203,8 +254,8 @@ getPrimitiveAttributes gltf bytes mesh primitiveIndex primitive =
         )
 
 
-toTriangularMesh : Raw.Gltf -> Bytes -> Raw.Mesh -> Result String (List ( TriangularMesh (Vertex coordinates), Color ))
-toTriangularMesh gltf bytes mesh =
+toTriangularMesh : Raw.Gltf -> Bytes -> ( Raw.Mesh, Mat4 ) -> Result String (List ( TriangularMesh (Vertex coordinates), Color ))
+toTriangularMesh gltf bytes ( mesh, modifier ) =
     List.indexedMap (getPrimitiveAttributes gltf bytes mesh) mesh.primitives
         |> List.map
             (Result.map
@@ -212,8 +263,20 @@ toTriangularMesh gltf bytes mesh =
                     ( TriangularMesh.indexed
                         (List.map2
                             (\position normal ->
-                                { position = position
-                                , normal = normal
+                                { position =
+                                    position
+                                        |> Point3d.unwrap
+                                        |> Math.Vector3.fromRecord
+                                        |> Math.Matrix4.transform modifier
+                                        |> Math.Vector3.toRecord
+                                        |> Point3d.unsafe
+                                , normal =
+                                    normal
+                                        |> Vector3d.unwrap
+                                        |> Math.Vector3.fromRecord
+                                        |> Math.Matrix4.transform modifier
+                                        |> Math.Vector3.toRecord
+                                        |> Vector3d.unsafe
                                 , uv = ( 0, 0 )
                                 }
                             )

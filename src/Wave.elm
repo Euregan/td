@@ -3,6 +3,7 @@ module Wave exposing (..)
 import Coordinates exposing (GameCoordinates)
 import Enemy exposing (Enemy)
 import Level exposing (Level)
+import Meshes exposing (Meshes)
 import Random exposing (Seed)
 import Scene3d
 import Vector3d
@@ -39,9 +40,9 @@ tick delta wave =
     { wave | enemies = List.map (Enemy.tick delta) wave.enemies }
 
 
-view : Wave -> Level -> List (Scene3d.Entity GameCoordinates)
-view wave level =
-    List.map Enemy.view wave.enemies
+view : Meshes -> Wave -> Level -> List (Scene3d.Entity GameCoordinates)
+view meshes wave level =
+    List.map (Enemy.view meshes) wave.enemies
         |> List.map
             (Scene3d.translateBy
                 (Vector3d.meters
