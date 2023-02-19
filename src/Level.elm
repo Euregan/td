@@ -65,7 +65,7 @@ update level msg =
 
 
 view : Meshes -> Level -> Maybe Position -> List (Scene3d.Entity GameCoordinates)
-view meshes level hoveredTile =
+view meshes level _ =
     let
         tile =
             List.map (\( mesh, material, shadow ) -> Scene3d.meshWithShadow material mesh shadow) meshes.tile

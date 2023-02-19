@@ -10,7 +10,7 @@ import orcTowerMiddle from "url:../static/towerRound_middleA.glb";
 import orcTowerTop from "url:../static/towerRound_topB.glb";
 import characterSkeleton from "url:../static/characterSkeleton.glb";
 
-Elm.Main.init({
+const app = Elm.Main.init({
   node: document.getElementById("root"),
   flags: {
     viewport: {
@@ -31,4 +31,8 @@ Elm.Main.init({
     },
     seed: Math.round(Math.random() * 1000000),
   },
+});
+
+addEventListener("wheel", (event) => {
+  app.ports.onWheel.send(event.wheelDeltaY);
 });

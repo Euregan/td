@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Angle
 import Browser
@@ -107,7 +107,10 @@ update msg model =
                 NewFrame delta ->
                     ( Loaded seed <| GameState.tick delta state, Cmd.none )
 
-                _ ->
+                OnWheel delta ->
+                    ( Loaded seed <| GameState.update (GameState.OnWheel delta) state, Cmd.none )
+
+                GotMesh _ _ ->
                     ( model, Cmd.none )
 
         Error ->
@@ -154,6 +157,9 @@ view model =
             text "😔"
 
 
+port onWheel : (Float -> msg) -> Sub msg
+
+
 subscriptions : Model -> Sub (Msg Loading.Msg)
 subscriptions model =
     let
@@ -185,6 +191,7 @@ subscriptions model =
                     , Browser.Events.onMouseMove decodeMouseMove
                     , Browser.Events.onMouseDown decodeMouseDown
                     , Browser.Events.onMouseUp decodeMouseUp
+                    , onWheel OnWheel
                     ]
 
                 _ ->

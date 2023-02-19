@@ -46,6 +46,7 @@ type Msg
     | MouseMoved (Quantity Float Pixels) (Quantity Float Pixels)
     | MouseUp (Quantity Float Pixels) (Quantity Float Pixels)
     | MouseDown (Quantity Float Pixels) (Quantity Float Pixels)
+    | OnWheel Float
 
 
 init : Seed -> Viewport -> Meshes -> ( GameState, Seed )
@@ -117,6 +118,9 @@ update msg state =
 
         MouseUp _ _ ->
             { state | mouseDown = Nothing }
+
+        OnWheel delta ->
+            { state | camera = Camera.zoom delta state.camera }
 
 
 tick : Float -> GameState -> GameState

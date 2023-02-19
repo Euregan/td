@@ -19,4 +19,5 @@ type Msg msg
     | MouseMoved (Quantity Float Pixels) (Quantity Float Pixels)
     | MouseUp (Quantity Float Pixels) (Quantity Float Pixels)
     | MouseDown (Quantity Float Pixels) (Quantity Float Pixels)
+    | OnWheel Float
     | NewFrame Float

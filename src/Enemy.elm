@@ -1,7 +1,6 @@
 module Enemy exposing (..)
 
 import AStar exposing (Path)
-import Color
 import Coordinates exposing (GameCoordinates)
 import Direction2d
 import Length exposing (Meters)

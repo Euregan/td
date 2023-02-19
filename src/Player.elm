@@ -3,7 +3,7 @@ module Player exposing (..)
 import AStar exposing (Position)
 import Building exposing (Blueprint(..), Building)
 import Coordinates exposing (GameCoordinates)
-import Enemy exposing (Enemy, update)
+import Enemy exposing (Enemy)
 import Meshes exposing (Meshes)
 import Scene3d
 import Vector3d
