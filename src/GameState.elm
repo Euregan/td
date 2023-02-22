@@ -6,6 +6,7 @@ import Camera exposing (Camera)
 import Camera3d
 import Coordinates exposing (GameCoordinates)
 import Enemy
+import Html exposing (Html, text)
 import Length exposing (Meters)
 import Level exposing (Level)
 import Math exposing (pointInRectangle)
@@ -18,6 +19,7 @@ import Random exposing (Seed)
 import Rectangle2d
 import Rectangle3d
 import Scene3d
+import Screen exposing (Screen)
 import SketchPlane3d exposing (SketchPlane3d)
 import Vector3d
 import Viewport exposing (Viewport)
@@ -31,7 +33,7 @@ type alias MousePosition =
 type alias GameState =
     { level : Level
     , meshes : Meshes
-    , viewport : Viewport
+    , screen : Screen
     , camera : Camera
     , hoveredTile : Maybe Position
     , players : List Player
@@ -49,8 +51,8 @@ type Msg
     | OnWheel Float
 
 
-init : Seed -> Viewport -> Meshes -> ( GameState, Seed )
-init seed viewport meshes =
+init : Seed -> Screen -> Meshes -> ( GameState, Seed )
+init seed screen meshes =
     let
         level =
             Level.init ( 15, 25 )
@@ -59,7 +61,7 @@ init seed viewport meshes =
             Wave.init seed level
     in
     ( { level = level
-      , viewport = viewport
+      , screen = screen
       , meshes = meshes
       , camera = Camera.init
       , hoveredTile = Nothing
@@ -76,15 +78,15 @@ update : Msg -> GameState -> GameState
 update msg state =
     case msg of
         WindowResized viewport ->
-            { state | viewport = viewport }
+            { state | screen = Screen.init viewport }
 
         MouseMoved x y ->
-            { state | hoveredTile = pointedTile state.camera state.viewport state.level { x = x, y = y } }
+            { state | hoveredTile = pointedTile state.camera state.screen state.level { x = x, y = y } }
 
         MouseDown x y ->
             let
                 tile =
-                    pointedTile state.camera state.viewport state.level { x = x, y = y }
+                    pointedTile state.camera state.screen state.level { x = x, y = y }
 
                 player =
                     case tile of
@@ -141,10 +143,10 @@ tick delta state =
     }
 
 
-view : Meshes -> GameState -> List (Scene3d.Entity GameCoordinates)
+view : Meshes -> GameState -> List ( Scene3d.Entity GameCoordinates, Html msg )
 view meshes state =
     List.concat
-        [ Wave.view meshes state.wave state.level
+        [ Wave.view ( state.camera, state.screen ) meshes state.wave state.level
         , Player.view meshes state.player state.hoveredTile
             |> List.map
                 (Scene3d.translateBy
@@ -154,6 +156,7 @@ view meshes state =
                         (toFloat state.level.length / -2)
                     )
                 )
+            |> List.map (\mesh -> ( mesh, text "" ))
         ]
 
 
@@ -175,16 +178,13 @@ plane =
     SketchPlane3d.xz
 
 
-pointedTile : Camera3d.Camera3d Meters GameCoordinates -> Viewport -> Level -> MousePosition -> Maybe Position
-pointedTile camera viewport level { x, y } =
+pointedTile : Camera3d.Camera3d Meters GameCoordinates -> Screen -> Level -> MousePosition -> Maybe Position
+pointedTile camera screen level { x, y } =
     let
         axis =
             Camera3d.ray
                 camera
-                (Rectangle2d.from
-                    (Point2d.pixels 0 viewport.height)
-                    (Point2d.pixels viewport.width 0)
-                )
+                screen
                 (Point2d.xy x y)
     in
     Level.tiles level

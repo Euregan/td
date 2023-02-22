@@ -77,6 +77,7 @@ tick delta enemies building =
                             ( [], False )
                             enemies
                             |> Tuple.first
+                            |> List.filter (\enemy -> enemy.currentHp > 0)
                         )
 
                     else

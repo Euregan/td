@@ -8,7 +8,7 @@ import Coordinates exposing (GameCoordinates)
 import Direction3d
 import Flags exposing (Flags)
 import GameState exposing (GameState)
-import Html exposing (Html, text)
+import Html exposing (Html, main_, text)
 import Illuminance
 import Json.Decode
 import Length
@@ -18,15 +18,18 @@ import Loading
 import Msg exposing (Msg(..))
 import Pixels
 import Point3d
+import Quantity
 import Random exposing (Seed)
+import Rectangle2d
 import Scene3d
 import Scene3d.Light
 import Scene3d.Material
+import Screen exposing (Screen)
 import Viewport exposing (Viewport)
 
 
 type alias LoadingMeshes =
-    { viewport : Viewport
+    { screen : Screen
     , meshes : Loading.Loading
     }
 
@@ -51,7 +54,7 @@ init : Flags -> ( Model, Cmd (Msg Loading.Msg) )
 init { viewport, models, seed } =
     ( Loading
         (Random.initialSeed seed)
-        { viewport = viewport
+        { screen = Screen.init viewport
         , meshes = Loading.init
         }
     , Cmd.batch <|
@@ -76,7 +79,7 @@ update msg model =
                         Just (Ok models) ->
                             let
                                 ( state, finalSeed ) =
-                                    GameState.init seed loading.viewport models
+                                    GameState.init seed loading.screen models
                             in
                             Loaded finalSeed state
             in
@@ -85,7 +88,7 @@ update msg model =
                     ( handleState { meshes | meshes = Loading.update meshes.meshes (toMsg result) }, Cmd.none )
 
                 WindowResized viewport ->
-                    ( Loading seed { meshes | viewport = viewport }, Cmd.none )
+                    ( Loading seed { meshes | screen = Screen.init viewport }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -125,33 +128,40 @@ view model =
 
         Loaded _ state ->
             let
-                { level, meshes, viewport, camera, hoveredTile } =
+                { level, meshes, screen, camera, hoveredTile } =
                     state
+
+                ( gameEntities, gameUi ) =
+                    GameState.view meshes state
+                        |> List.foldl (\( entity, ui ) ( entities, uis ) -> ( entity :: entities, ui :: uis )) ( [], [] )
             in
-            Scene3d.custom
-                { lights =
-                    Scene3d.twoLights
-                        (Scene3d.Light.directional (Scene3d.Light.castsShadows True)
-                            { chromaticity = Scene3d.Light.sunlight
-                            , intensity = Illuminance.lux 80000
-                            , direction = Direction3d.xyZ (Angle.degrees 130) (Angle.degrees 150)
-                            }
-                        )
-                        (Scene3d.Light.ambient
-                            { chromaticity = Scene3d.Light.sunlight
-                            , intensity = Illuminance.lux 13000
-                            }
-                        )
-                , camera = camera
-                , clipDepth = Length.meters 1
-                , exposure = Scene3d.exposureValue 13
-                , toneMapping = Scene3d.noToneMapping
-                , whiteBalance = Scene3d.Light.daylight
-                , antialiasing = Scene3d.multisampling
-                , dimensions = ( Pixels.int <| floor viewport.width, Pixels.int <| floor viewport.height )
-                , background = Scene3d.transparentBackground
-                , entities = List.concat [ [ ground ], Level.view meshes level hoveredTile, GameState.view meshes state ]
-                }
+            main_ []
+                (Scene3d.custom
+                    { lights =
+                        Scene3d.twoLights
+                            (Scene3d.Light.directional (Scene3d.Light.castsShadows True)
+                                { chromaticity = Scene3d.Light.sunlight
+                                , intensity = Illuminance.lux 80000
+                                , direction = Direction3d.xyZ (Angle.degrees 130) (Angle.degrees 150)
+                                }
+                            )
+                            (Scene3d.Light.ambient
+                                { chromaticity = Scene3d.Light.sunlight
+                                , intensity = Illuminance.lux 13000
+                                }
+                            )
+                    , camera = camera
+                    , clipDepth = Length.meters 1
+                    , exposure = Scene3d.exposureValue 13
+                    , toneMapping = Scene3d.noToneMapping
+                    , whiteBalance = Scene3d.Light.daylight
+                    , antialiasing = Scene3d.multisampling
+                    , dimensions = Rectangle2d.dimensions screen |> Tuple.mapBoth Quantity.floor Quantity.floor
+                    , background = Scene3d.transparentBackground
+                    , entities = List.concat [ [ ground ], Level.view meshes level hoveredTile, gameEntities ]
+                    }
+                    :: gameUi
+                )
 
         Error ->
             text "😔"

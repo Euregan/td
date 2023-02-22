@@ -1,16 +1,20 @@
 module Enemy exposing (..)
 
 import AStar exposing (Path)
+import Camera exposing (Camera)
 import Coordinates exposing (GameCoordinates)
 import Direction2d
+import Html exposing (Html)
 import Length exposing (Meters)
 import Level exposing (Level)
 import Meshes exposing (Meshes)
 import Point2d exposing (Point2d)
-import Point3d
+import Point3d exposing (Point3d)
 import Quantity
 import Random exposing (Seed)
 import Scene3d
+import Screen exposing (Screen)
+import Ui
 import Vector3d
 
 
@@ -32,9 +36,17 @@ init : Seed -> Level -> ( Enemy, Seed )
 init seed level =
     let
         ( ( offsetX, offsetY ), newSeed ) =
-            Random.step (Random.map2 (\x y -> ( x, y )) (Random.float -0.3 0.3) (Random.float -0.4 0.4)) seed
+            Random.step
+                (Random.map2 (\x y -> ( x, y ))
+                    (Random.float -0.3 0.3)
+                    (Random.float -0.4 0.4)
+                )
+                seed
     in
-    ( { position = Point2d.meters (toFloat level.start.x - 0.25 + offsetX) (toFloat level.start.y - 0.25 + offsetY)
+    ( { position =
+            Point2d.meters
+                (toFloat level.start.x - 0.25 + offsetX)
+                (toFloat level.start.y - 0.25 + offsetY)
       , offset = ( offsetX, offsetY )
       , path = level.path
       , speed = 0.001
@@ -97,10 +109,23 @@ tick delta enemy =
                 }
 
 
-view : Meshes -> Enemy -> Scene3d.Entity GameCoordinates
-view meshes enemy =
-    meshes.characterSkeleton
+view : ( Camera, Screen, Level ) -> Meshes -> Enemy -> ( Scene3d.Entity GameCoordinates, Html msg )
+view ( camera, screen, level ) meshes enemy =
+    let
+        position : Float -> Point3d Meters GameCoordinates
+        position elevation =
+            Point3d.xyz
+                (Quantity.plus (Point2d.xCoordinate enemy.position) (Length.meters <| (toFloat level.width / -2)))
+                (Length.meters elevation)
+                (Quantity.plus (Point2d.yCoordinate enemy.position) (Length.meters <| (toFloat level.length / -2)))
+
+        translation =
+            Vector3d.from Point3d.origin (position 0.1)
+    in
+    ( meshes.characterSkeleton
         |> List.map (\( m, material, shadow ) -> Scene3d.meshWithShadow material m shadow)
         |> Scene3d.group
-        |> Scene3d.translateBy (Vector3d.xyz (Point2d.xCoordinate enemy.position) (Length.meters 0) (Point2d.yCoordinate enemy.position))
-        |> Scene3d.scaleAbout (Point3d.xyz (Point2d.xCoordinate enemy.position) (Length.meters 0) (Point2d.yCoordinate enemy.position)) 0.4
+        |> Scene3d.translateBy translation
+        |> Scene3d.scaleAbout (position 0.1) 0.4
+    , Ui.healthbar camera screen (position 0.5) ( enemy.currentHp, enemy.maxHp )
+    )
